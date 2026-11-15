@@ -36,6 +36,30 @@ The original minimal layout remains available under **Page layout → Transparen
 
 Both layouts have previous/next, direct page jump, saved reading position, and optional hiding in Activities. Neither draws over the lock screen.
 
+## Keyboard navigation and offline search
+
+| Action | Default shortcut |
+| --- | --- |
+| Previous page | Ctrl + Alt + Page Up |
+| Next page | Ctrl + Alt + Page Down |
+| First page | Ctrl + Alt + Home |
+| Last page | Ctrl + Alt + End |
+| Go to page | Ctrl + Alt + G |
+| Search Quran | Ctrl + Alt + F |
+
+Shortcuts work in the normal unlocked desktop session, not on the lock screen, in Activities, or over another modal dialog. Page navigation stops at pages 1 and 604. Go to page opens the panel input with the current page selected; Arabic and Persian page digits are accepted.
+
+Open **Search Quran…** in the top-bar menu or use its shortcut. Search the bundled text by:
+
+- Arabic verse text, with or without diacritics: `الحمد لله رب العالمين`.
+- Arabic surah name or transliteration: `الفاتحة`, `fatiha`.
+- Verse reference: `2:255` or `٢:٢٥٥`.
+- Page number: `604`, `٦٠٤`, or `۶۰۴`.
+
+Results show original, unchanged Quran text and their page references. Select a result to read its page without changing your Mushaf edition or layout. Enter in the search field opens the first match; Up/Down navigate results, Enter activates a focused result, and Escape closes search. Large result sets have previous/more controls and exact totals. Search itself stays offline; displaying an uncached Mushaf image may still need internet. Translations are not bundled or searched.
+
+Customize, disable, or reset shortcuts under **Reading & appearance… → Navigation**. Enter a GTK accelerator such as `<Control><Alt>n` and click **Set**; clear and Set to disable, or use undo to restore the default. The editor rejects bare typing keys and duplicate Quran bindings. Changes apply without restarting Shell. Other applications or system shortcuts can still conflict.
+
 ## Install / update
 
 Requirements: GNOME Shell **46**, GJS with Soup 3 and GdkPixbuf, `glib-compile-schemas`, `zip`, and an Arabic-capable font for labels / transparent text (recommended: **Noto Naskh Arabic**). Python 3 is only needed for the optional full offline image download.
@@ -86,7 +110,7 @@ Open **Reading & appearance…** from the top-bar menu, or run:
 gnome-extensions prefs quran-desktop@local
 ```
 
-The **Reading** tab has page selection, layout, theme preview cards, and page configuration. The **Desktop** tab contains placement, transparency, text-only styling, and source credits. The desktop itself never consumes pointer input.
+The **Reading** tab has page selection, layout, theme preview cards, and page configuration. The **Desktop** tab contains placement, transparency, text-only styling, and source credits. The **Navigation** tab contains shortcut editing and offline search help. The desktop itself never consumes pointer input.
 
 ### Background transparency and rounded corners
 
@@ -115,11 +139,14 @@ No npm dependencies or transpilation are needed.
 npm test
 python3 tests/download-pages-test.py
 npm run test:render
+npm run test:navigation
 bash scripts/build.sh
 bash tests/run-shell.sh
 ```
 
 Native image tests require their pages to be cached or an internet connection. Shell tests seed a few images from your existing cache into **private XDG directories**, use a separate D-Bus session, and start an isolated headless compositor. They never enable the extension in your normal desktop. Their unsafe-mode helper is test-only and never packaged.
+
+`test:navigation` exercises real virtual-keyboard shortcuts, search, lifecycle cleanup, and native preferences independently of the legacy image/screenshot stress checks. The full `test:shell` suite currently encounters a pre-existing Tajweed-night screenshot timeout with GJS GC warnings; see the verification record rather than treating the focused suite as a full-suite pass.
 
 - `extension.js`: background actor, panel controls, async page loading, visibility, and lifecycle.
 - `pageStore.js`: HTTPS image download, repairable disk cache, cancellation, and native PNG decoding.
@@ -127,6 +154,9 @@ Native image tests require their pages to be cached or an internet connection. S
 - `madaniRenderer.js`: fixed-layout image renderer and page furniture.
 - `model.js` / `renderer.js`: original offline text model and reflowed text rendering.
 - `prefs.js`: native GTK4 / Adwaita preferences.
+- `navigation.js`: shared shortcut identifiers, labels, and defaults.
+- `search.js`: pure offline search index and query-only Arabic normalization.
+- `searchDialog.js` / `stylesheet.css`: native Shell search dialog and keyboard result navigation.
 - `scripts/download-pages.py`: optional full offline pack installer.
 
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for executed checks and limitations.

@@ -7,6 +7,7 @@
     "test": "node --test tests/*.test.js && python3 tests/download-pages-test.py",
     "test:render": "gjs -m tests/render.js && gjs -m tests/all-pages.js && gjs -m tests/page-store.js && gjs -m tests/madani-render.js && gjs -m tests/tajweed-render.js && gjs -m tests/surface-style.js",
     "test:shell": "bash tests/run-shell.sh",
+    "test:navigation": "QURAN_TEST_SCOPE=navigation bash tests/run-shell.sh",
     "build": "bash scripts/build.sh"
   }
 }

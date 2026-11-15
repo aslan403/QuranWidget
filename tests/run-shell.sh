@@ -36,6 +36,9 @@ unset DISPLAY WAYLAND_DISPLAY
 gsettings set org.gnome.shell enabled-extensions "[\"quran-test-driver@local\", \"quran-desktop@local\"]"
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.desktop.interface enable-animations false
+if [[ "${QURAN_TEST_SCOPE:-all}" == navigation ]]; then
+    GSETTINGS_SCHEMA_DIR="$PROJECT/schemas" gsettings set org.gnome.shell.extensions.quran-desktop mushaf-edition tajweed
+fi
 gsettings set org.gnome.desktop.notifications show-banners false
 gsettings set org.gnome.desktop.background picture-uri ""
 gsettings set org.gnome.desktop.background picture-uri-dark ""
@@ -44,7 +47,13 @@ LIBGL_ALWAYS_SOFTWARE=1 gnome-shell --headless --wayland --no-x11 --virtual-moni
 SHELL_PID=$!
 trap "kill $SHELL_PID 2>/dev/null || true" EXIT
 sleep 3
-gjs -m "$PROJECT/tests/shell-client.js"
+if [[ "${QURAN_TEST_SCOPE:-all}" == navigation ]]; then
+    gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "Main.overview.hide(); true"
+    sleep 0.3
+else
+    gjs -m "$PROJECT/tests/shell-client.js"
+fi
+gjs -m "$PROJECT/tests/navigation-search-client.js"
 export WAYLAND_DISPLAY=wayland-0
 cd "$PROJECT"
 GI_TYPELIB_PATH="/usr/lib/gnome-shell/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}" gjs -m "$PROJECT/tests/prefs.js"

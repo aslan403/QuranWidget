@@ -1,5 +1,7 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -10,10 +12,16 @@ import {drawPage} from './renderer.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {MadaniPageStore} from './pageStore.js';
 import {MADANI_WIDTH, MADANI_HEIGHT, mushafEdition, resolvePageTheme} from './pageModel.js';
+import {asciiDigits, QuranSearchIndex} from './search.js';
+import {QuranSearchDialog} from './searchDialog.js';
+import {SHORTCUTS} from './navigation.js';
 
 export default class QuranDesktopExtension extends Extension {
     enable() {
         this._signals = [];
+        this._keybindings = [];
+        this._searchDialog = null;
+        this._searchIndex = null;
         this._generation = {active: true};
         this._settings = this.getSettings();
         this._systemSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
@@ -63,6 +71,7 @@ export default class QuranDesktopExtension extends Extension {
         });
         Main.layoutManager._backgroundGroup.add_child(this._area);
         this._createMenu();
+        this._registerShortcuts();
         this._connect(this._settings, 'changed', () => this._update());
         this._connect(this._systemSettings, 'changed::color-scheme', () => {
             this._prepareColorPage();
@@ -95,7 +104,7 @@ export default class QuranDesktopExtension extends Extension {
             accessible_name: 'Quran page number'});
         this._entry.set_width(110);
         this._entry.clutter_text.connect('activate', () => {
-            const value = this._entry.get_text().trim();
+            const value = asciiDigits(this._entry.get_text()).trim();
             if (/^\d{1,3}$/.test(value) && Number(value) >= 1 && Number(value) <= 604) {
                 this._settings.set_int('page', Number(value));
                 this._indicator.menu.close();
@@ -119,12 +128,60 @@ export default class QuranDesktopExtension extends Extension {
                 this._loadMadaniPage(this._settings.get_int('page'));
         });
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this._indicator.menu.addAction('Search Quran…', () => this._openSearch());
         this._indicator.menu.addAction('Reading & appearance…', () => this.openPreferences());
         Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 
     _changePage(delta) {
         this._settings.set_int('page', clampPage(this._settings.get_int('page') + delta));
+    }
+
+    _registerShortcuts() {
+        const actions = {
+            'quran-previous-page': () => this._changePage(-1),
+            'quran-next-page': () => this._changePage(1),
+            'quran-first-page': () => this._settings.set_int('page', 1),
+            'quran-last-page': () => this._settings.set_int('page', 604),
+            'quran-go-to-page': () => this._openPageJump(),
+            'quran-search': () => this._openSearch(),
+        };
+        for (const {name} of SHORTCUTS) {
+            Main.wm.addKeybinding(name, this._settings, Meta.KeyBindingFlags.NONE,
+                Shell.ActionMode.NORMAL, actions[name]);
+            this._keybindings.push(name);
+        }
+    }
+
+    _openPageJump() {
+        if (Main.sessionMode.isLocked) return;
+        Main.overview.hide();
+        this._indicator.menu.open();
+        this._entry.set_text(String(this._settings.get_int('page')));
+        this._entry.clutter_text.grab_key_focus();
+        this._entry.clutter_text.set_selection(0, -1);
+    }
+
+    _openSearch() {
+        if (Main.sessionMode.isLocked) return;
+        if (this._searchDialog) {
+            this._searchDialog._entry.clutter_text.grab_key_focus();
+            return;
+        }
+        Main.overview.hide();
+        this._indicator.menu.close();
+        this._searchIndex ??= new QuranSearchIndex(this._data);
+        const dialog = new QuranSearchDialog(this._searchIndex, result => {
+            if (this._settings) this._settings.set_int('page', result.page);
+        });
+        this._searchDialog = dialog;
+        dialog.connect('destroy', () => {
+            if (this._searchDialog === dialog) this._searchDialog = null;
+        });
+        if (!dialog.open()) {
+            this._searchDialog = null;
+            dialog.destroy();
+        }
     }
 
     _prepareColorPage() {
@@ -210,6 +267,11 @@ export default class QuranDesktopExtension extends Extension {
     }
 
     disable() {
+        for (const name of this._keybindings ?? []) Main.wm.removeKeybinding(name);
+        this._keybindings = [];
+        this._searchDialog?.close();
+        this._searchDialog = null;
+        this._searchIndex = null;
         if (this._generation) this._generation.active = false;
         this._cancellable?.cancel();
         this._store?.destroy();

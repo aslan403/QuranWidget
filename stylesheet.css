@@ -1,0 +1,11 @@
+.quran-search-dialog { padding: 24px; }
+.quran-search-title { font-size: 22px; font-weight: bold; margin-bottom: 8px; }
+.quran-search-help { font-size: 12px; color: #b9b7bc; }
+.quran-search-query { margin-top: 16px; margin-bottom: 12px; }
+.quran-search-status { font-size: 12px; color: #b9b7bc; margin-bottom: 12px; }
+.quran-search-result-list { spacing: 8px; }
+.quran-search-result { padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background-color: rgba(255,255,255,0.04); }
+.quran-search-result:hover, .quran-search-result:focus { border-color: rgba(150,190,230,0.8); background-color: rgba(150,190,230,0.12); }
+.quran-search-result-title { font-size: 13px; font-weight: bold; margin-bottom: 6px; }
+.quran-search-result-text { font-family: "Noto Naskh Arabic"; font-size: 18px; }
+.quran-search-pagination { spacing: 12px; margin-top: 12px; }

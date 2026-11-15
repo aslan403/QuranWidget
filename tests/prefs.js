@@ -74,6 +74,24 @@ settings.set_string('page-theme', 'automatic');
 expect(!darkButton.active, 'automatic appearance clears manual color selection');
 settings.set_string('page-theme', 'light');
 settings.set_int('night-background-brightness', 0);
+const shortcutEntry = descendants.find(widget => widget instanceof Gtk.Entry && widget.name === 'quran-next-page-entry');
+const shortcutApply = descendants.find(widget => widget instanceof Gtk.Button && widget.name === 'quran-next-page-apply');
+const shortcutReset = descendants.find(widget => widget instanceof Gtk.Button && widget.name === 'quran-next-page-reset');
+expect(Boolean(shortcutEntry && shortcutApply && shortcutReset), 'native preferences expose editable navigation shortcuts');
+const defaultShortcut = settings.get_strv('quran-next-page')[0];
+shortcutEntry.text = 'a'; shortcutApply.emit('clicked');
+expect(shortcutEntry.has_css_class('error') && settings.get_strv('quran-next-page')[0] === defaultShortcut,
+    'bare typing keys cannot become global navigation shortcuts');
+shortcutEntry.text = settings.get_strv('quran-previous-page')[0]; shortcutApply.emit('clicked');
+expect(shortcutEntry.has_css_class('error') && settings.get_strv('quran-next-page')[0] === defaultShortcut,
+    'duplicate Quran shortcuts are rejected');
+shortcutEntry.text = '<Control><Alt>n'; shortcutApply.emit('clicked');
+expect(settings.get_strv('quran-next-page')[0] === '<Control><Alt>n', 'native shortcut editor saves valid custom accelerators');
+shortcutEntry.text = ''; shortcutApply.emit('clicked');
+expect(settings.get_strv('quran-next-page').length === 0, 'native shortcut editor can disable an action');
+shortcutReset.emit('clicked');
+expect(settings.get_strv('quran-next-page')[0] === defaultShortcut && shortcutEntry.text === defaultShortcut,
+    'native shortcut reset restores the default and refreshes the editor');
 window.present();
 // Yield the JS job queue so cached-image promises can update the preview cards.
 await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -94,5 +112,15 @@ const [styleCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnom
     'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, styleScreenshot]),
     null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack();
 expect(styleCaptured, `background and corner controls screenshot: ${styleScreenshot}`);
+const navigation = descendants.find(widget => widget instanceof Adw.PreferencesPage && widget.title === 'Navigation');
+window.set_visible_page(navigation);
+await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+    resolve(); return GLib.SOURCE_REMOVE;
+}));
+const navigationScreenshot = GLib.getenv('QURAN_TEST_ROOT') + '/navigation-preferences.png';
+const [navigationCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
+    'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, navigationScreenshot]),
+    null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack();
+expect(navigationCaptured, `navigation shortcut controls screenshot: ${navigationScreenshot}`);
 window.destroy();
 print('All native preferences checks passed.');

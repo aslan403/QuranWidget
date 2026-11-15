@@ -17,6 +17,10 @@ glib-compile-schemas --strict schemas
 files=(
     extension.js
     model.js
+    navigation.js
+    search.js
+    searchDialog.js
+    stylesheet.css
     renderer.js
     drawing.js
     madaniRenderer.js

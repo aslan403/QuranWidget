@@ -1,11 +1,14 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Gdk from 'gi://Gdk?version=4.0';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {MadaniPageStore} from './pageStore.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {pageContent} from './model.js';
 import {resolvePageTheme} from './pageModel.js';
+import {SHORTCUTS} from './navigation.js';
 
 export default class QuranDesktopPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -145,14 +148,14 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
 
         const widget = new Adw.PreferencesPage({title: 'Desktop', icon_name: 'preferences-desktop-display-symbolic'});
         window.add(widget);
-        const surfaceStyle = new Adw.PreferencesGroup({title: 'Background & corners',
+        const surfaceStyle = new Adw.PreferencesGroup({title: 'Background &amp; corners',
             description: 'Adjust the paper without fading the Quran text. Also applies to the optional transparent-text backdrop.'});
         widget.add(surfaceStyle);
         this._addSpin(surfaceStyle, settings, 'background-opacity', 'Background opacity',
             '0% transparent · 100% solid · Quran ink stays opaque', 0, 100);
         this._addSpin(surfaceStyle, settings, 'corner-radius', 'Corner radius',
             'Logical pixels · 0 square · 64 rounded · smooth edges', 0, 64, 2);
-        const placement = new Adw.PreferencesGroup({title: 'Size & placement', description: 'The page stays below your windows and remains click-through.'});
+        const placement = new Adw.PreferencesGroup({title: 'Size &amp; placement', description: 'The page stays below your windows and remains click-through.'});
         widget.add(placement);
         this._addSpin(placement, settings, 'height', 'Height', 'Logical pixels · 320–1600', 320, 1600, 10);
         this._addSpin(placement, settings, 'opacity', 'Overall opacity', 'Fades both Quran ink and paper · 20–100%', 20, 100);
@@ -166,12 +169,76 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         this._addEntry(transparent, settings, 'font-name', 'Arabic font', 'For example Noto Naskh Arabic', value => value.trim().length > 0, 'Enter a font family.');
         this._addEntry(transparent, settings, 'text-color', 'Text color', '#RRGGBB', value => /^#[0-9a-fA-F]{6}$/.test(value), 'Enter a #RRGGBB color.');
         this._addSwitch(transparent, settings, 'show-backdrop', 'Text backdrop', 'Enable a dark backing; style it with Background opacity and Corner radius above');
-        const sources = new Adw.PreferencesGroup({title: 'Sources & offline use',
+        const sources = new Adw.PreferencesGroup({title: 'Sources &amp; offline use',
             description: 'Madani images: King Fahd Quran Complex via Quran for Android. Tajweed: pinned community page-provider images; original colors preserved. Text: Tanzil via AlQuran Cloud. Images cache as read and are not bundled. The full offline download helper currently covers Madani only. See the source-specific notices.'});
         widget.add(sources);
         sources.add(new Gtk.LinkButton({uri: 'https://github.com/quran/quran_android', label: 'Quran for Android · source and credits'}));
         sources.add(new Gtk.LinkButton({uri: 'https://github.com/HiIAmMoot/quran-android-tajweed-page-provider', label: 'مصحف التجويد · original page source'}));
         sources.add(new Gtk.LinkButton({uri: 'https://tanzil.net/', label: 'Tanzil Project · Quran text'}));
+
+        const navigation = new Adw.PreferencesPage({title: 'Navigation', icon_name: 'input-keyboard-symbolic'});
+        window.add(navigation);
+        const shortcuts = new Adw.PreferencesGroup({title: 'Keyboard shortcuts',
+            description: 'Enter a GTK accelerator such as &lt;Control&gt;&lt;Alt&gt;Page_Down, then click Set. Clear the field and Set to disable; the undo button restores its default. Use Ctrl, Alt, or Super to avoid stealing ordinary typing keys. System shortcut conflicts may take precedence.'});
+        navigation.add(shortcuts);
+        for (const shortcut of SHORTCUTS)
+            this._addShortcutRow(shortcuts, settings, shortcut, connect);
+        const searchHelp = new Adw.PreferencesGroup({title: 'Offline search',
+            description: 'Use Search Quran in the top-bar menu, or its shortcut. Search Arabic text without diacritics, surah names (الفاتحة / fatiha), pages (604 / ٦٠٤), and references (2:255 / ٢:٢٥٥). Select a result or use Down and Enter to open its page. Escape closes search. Translations are not bundled; uncached page images may still require internet.'});
+        navigation.add(searchHelp);
+    }
+
+    _addShortcutRow(group, settings, shortcut, connect) {
+        const {name, title} = shortcut;
+        const row = new Adw.ActionRow({title});
+        const entry = new Gtk.Entry({name: `${name}-entry`, width_chars: 16, max_width_chars: 20,
+            valign: Gtk.Align.CENTER, placeholder_text: 'Disabled'});
+        const apply = new Gtk.Button({name: `${name}-apply`, label: 'Set', valign: Gtk.Align.CENTER});
+        const reset = new Gtk.Button({name: `${name}-reset`, icon_name: 'edit-undo-symbolic',
+            tooltip_text: 'Restore default shortcut', valign: Gtk.Align.CENTER});
+        const refresh = () => {
+            const value = settings.get_strv(name)[0] ?? '';
+            entry.text = value;
+            const [ok, key, modifiers] = Gtk.accelerator_parse(value);
+            row.subtitle = ok ? GLib.markup_escape_text(Gtk.accelerator_get_label(key, modifiers), -1) : 'Disabled';
+            entry.remove_css_class('error');
+            entry.set_tooltip_text(null);
+        };
+        const save = () => {
+            const value = entry.text.trim();
+            if (!value) {settings.set_strv(name, []); refresh(); return;}
+            const [ok, key, modifiers] = Gtk.accelerator_parse(value);
+            const required = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SUPER_MASK;
+            if (!ok || !Gtk.accelerator_valid(key, modifiers) || !(modifiers & required)) {
+                entry.add_css_class('error');
+                entry.set_tooltip_text('Enter a valid shortcut with Ctrl, Alt, or Super, or clear the field to disable.');
+                return;
+            }
+            const canonical = Gtk.accelerator_name(key, modifiers);
+            for (const other of SHORTCUTS) {
+                if (other.name === name) continue;
+                for (const used of settings.get_strv(other.name)) {
+                    const [valid, otherKey, otherModifiers] = Gtk.accelerator_parse(used);
+                    if (valid && Gtk.accelerator_name(otherKey, otherModifiers) === canonical) {
+                        entry.add_css_class('error');
+                        entry.set_tooltip_text(`Already used by ${other.title}. Choose another shortcut.`);
+                        return;
+                    }
+                }
+            }
+            settings.set_strv(name, [canonical]);
+            refresh();
+        };
+        apply.connect('clicked', save);
+        entry.connect('activate', save);
+        reset.connect('clicked', () => {settings.reset(name); refresh();});
+        connect(`changed::${name}`, refresh);
+        row.add_suffix(entry);
+        row.add_suffix(apply);
+        row.add_suffix(reset);
+        row.set_activatable_widget(entry);
+        group.add(row);
+        refresh();
     }
 
     _addSwitch(group, settings, key, title, subtitle) {

@@ -4,6 +4,20 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 
 ## Executed checks
 
+### Navigation and offline search update
+
+- `npm test`: 18 Node tests and 2 Python archive tests passed. New search coverage includes stable bounded pagination and exact totals, Arabic surah names and transliteration, ASCII/Arabic/Persian references, unmarked Arabic queries, and preservation of the original marked Quran text.
+- `npm run test:render`: the existing native rendering checks passed, including fitting all 604 text pages, Madani cache/cancellation, colored Tajweed themes, and independent paper opacity / rounded corners.
+- `npm run test:navigation`: passed in a real isolated GNOME 46 compositor with an actual Clutter virtual keyboard, not direct callback substitutes for shortcut activation. Exercises all six bindings, page boundaries, live rebinding and disabling, Arabic page input, focused native search, verse/surah/phrase matching, exact pagination totals, offscreen-result keyboard scrolling, Enter selection, Escape, preservation of the selected Mushaf, pending-search cancellation, and disable/re-enable cleanup.
+- Native preferences passed: shortcut fields save valid accelerators, reject bare keys and duplicates, disable with an empty value, restore defaults, and retain the existing page, edition, theme, opacity and corner controls.
+- Arabic results were visually inspected. Runtime layout assertions verify no horizontal result clipping and no dialog shrinkage on repeated searches. Focus is moved out of result actors before replacing them so Escape continues working after a focused result disappears.
+- Search and shortcut-preferences screenshots are `search.png` and `navigation-preferences.png`.
+- Strict build and ZIP integrity passed: all 22 runtime members matched source bytes, with no test driver or page-image cache. The native installer succeeded in a private XDG directory; all installed members were read back and matched the archive. All six installed shortcut schema defaults matched shared runtime/preference metadata. The focused compositor log contained no JS errors or sweeping-phase warnings.
+
+**Known baseline limitation:** the original full `test:shell` image/screenshot stress suite timed out on its Tajweed-night screenshot and logged GJS sweeping-phase callback warnings before navigation/search integration. It still fails at that earlier graphics stage. The independently runnable navigation/search suite passes; this is not a claim that the full legacy Shell suite is green.
+
+### Earlier appearance verification
+
 - `npm test`: 14 Node tests and 2 Python archive tests passed. Covers page boundaries, both portrait aspect ratios, complete bundled text, Arabic digits / direction, theme colors and Android contrast compensation, grayscale alpha-mask conversion, full-image fitting, safe filenames, missing-pack rejection, invalidation of stale derived masks, pinned Tajweed URLs / separate caches, and color-preserving Tajweed night pixels.
 - `npm run test:render`: native Cairo / Pango text rendering, all 604 text pages fitting without missing glyphs, native Madani image decoding and caching, cancellation, and original-image rendering in Light / Sepia / Dark passed.
 - Full source image pack: all 604 original PNGs validated for hashes, dimensions, and successful PNG verification. Original image data totals 56,620,780 bytes; no image pack is included in the software ZIP.

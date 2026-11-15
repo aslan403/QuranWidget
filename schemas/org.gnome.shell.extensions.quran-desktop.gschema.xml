@@ -95,5 +95,29 @@
     <key name="page-margin" type="i">
       <range min="12" max="56"/><default>24</default><summary>Madani page side margins</summary>
     </key>
+    <key name="quran-previous-page" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;Page_Up']</default>
+      <summary>Shortcut for previous page</summary>
+    </key>
+    <key name="quran-next-page" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;Page_Down']</default>
+      <summary>Shortcut for next page</summary>
+    </key>
+    <key name="quran-first-page" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;Home']</default>
+      <summary>Shortcut for first page</summary>
+    </key>
+    <key name="quran-last-page" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;End']</default>
+      <summary>Shortcut for last page</summary>
+    </key>
+    <key name="quran-go-to-page" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;g']</default>
+      <summary>Shortcut for page input</summary>
+    </key>
+    <key name="quran-search" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;f']</default>
+      <summary>Shortcut for offline Quran search</summary>
+    </key>
   </schema>
 </schemalist>
