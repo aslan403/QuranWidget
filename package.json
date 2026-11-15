@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.js",
-    "test:render": "gjs -m tests/render.js && gjs -m tests/all-pages.js",
+    "test": "node --test tests/*.test.js && python3 tests/download-pages-test.py",
+    "test:render": "gjs -m tests/render.js && gjs -m tests/all-pages.js && gjs -m tests/page-store.js && gjs -m tests/madani-render.js",
     "test:shell": "bash tests/run-shell.sh",
     "build": "bash scripts/build.sh"
   }

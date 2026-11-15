@@ -18,12 +18,17 @@ files=(
     extension.js
     model.js
     renderer.js
+    madaniRenderer.js
+    pageModel.js
+    pageStore.js
+    scripts/download-pages.py
     prefs.js
     metadata.json
     schemas/*.xml
     schemas/gschemas.compiled
     data/quran.json
     data/SOURCE.md
+    data/MADANI-SOURCE.md
     README.md
     LICENSE
 )

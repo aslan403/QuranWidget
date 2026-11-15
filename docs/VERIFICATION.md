@@ -1,24 +1,30 @@
 # Verification
 
-Executed on GNOME Shell 46.0 / GJS 1.80.2.
+Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita preferences and a separate headless Wayland compositor.
 
-## Checks that passed
+## Executed checks
 
-- `node --test tests/*.test.js`: 7 tests, 7 passed, 0 failed.
-- `gjs -m tests/render.js`: native Cairo / Pango Arabic shaping and auto-fitting passed.
-- `gjs -m tests/all-pages.js`: every one of the 604 source pages fits the available layout; zero missing glyphs with the installed Noto Naskh Arabic font. Smallest reference font: 17.75 px on page 565.
-- `bash tests/run-shell.sh`: real isolated GNOME Shell 46 headless Wayland compositor. Verified offline content loading, click-through background actor, panel next/previous controls, jump to 604, invalid-page rejection, last-page boundary, live placement, overview visibility, disable cleanup and single-actor re-enable.
-- Native preferences actually opened under that compositor. Verified six numeric controls, bidirectional page bindings, invalid-color rejection, and valid-color persistence.
-- `bash scripts/build.sh`: strict schema compilation and archive creation passed.
-- ZIP integrity checked; every archive member compared byte-for-byte against source; no test driver or test code packaged.
-- `gnome-extensions install --force` succeeded in an isolated `XDG_DATA_HOME`; installed files read back and compared with source.
+- `npm test`: 12 Node tests and 2 Python archive tests passed. Covers page boundaries, both portrait aspect ratios, complete bundled text, Arabic digits / direction, theme colors and Android contrast compensation, grayscale alpha-mask conversion, full-image fitting, safe filenames, missing-pack rejection, and invalidation of stale derived masks.
+- `npm run test:render`: native Cairo / Pango text rendering, all 604 text pages fitting without missing glyphs, native Madani image decoding and caching, cancellation, and original-image rendering in Light / Sepia / Dark passed.
+- Full source image pack: all 604 original PNGs validated for hashes, dimensions, and successful PNG verification. Original image data totals 56,620,780 bytes; no image pack is included in the software ZIP.
+- `bash tests/run-shell.sh`: real isolated Shell loading and click-through background actor; actual 1024-pixel Madani image decoded; panel next/previous and jump to page 604; invalid page rejected; last-page boundary; live placement; overview hiding; automatic dark theme repaint; switching to transparent text and back with the appropriate aspect ratios; disable cleanup and single-actor re-enable.
+- Native preferences actually opened in that compositor: nine numeric controls, bidirectional page bindings, font/color controls, rejected invalid color, theme-preview buttons writing settings, independent night background control, and automatic appearance clearing manual selection. Real image preview cards were visually inspected after yielding the GJS promise job queue.
+- Strict schema compilation and explicit-allowlist ZIP build.
+- ZIP integrity checked and every archive member compared against the source; no tests, unsafe-mode driver, or full page image cache packaged.
+- Native `gnome-extensions install --force` in an isolated XDG_DATA_HOME, followed by installed-file readback comparisons.
 
 ## Evidence
 
-- `desktop.png`: real compositor screenshot, not a mockup.
-- `preferences.png`: real native Adwaita preferences window.
-- `page-1.png`, `page-2.png`, `page-187.png`, `page-604.png`: offscreen renders from the same renderer as the extension.
+- `desktop.png`: real compositor rendering of Madani page 187.
+- `desktop-dark.png`: same page after automatic desktop-theme matching switches it to dark.
+- `preferences.png`: actual native preferences with three original-image theme cards.
+- `madani-themes.png`: same original page rendered in the three page colors, using the production renderer.
+- `page-{1,2,187,604}.png`: original transparent-text renderer examples, retained to document that option.
 
-The private compositor test uses an unsafe-mode driver solely to access Shell Eval for assertions and screenshots. That driver is never shipped. No extension was installed or enabled in the user's normal desktop session.
+The private compositor's unsafe-mode companion exists solely for assertions and screenshots and is never distributed. No extension was installed or enabled in the normal desktop session. Original Madani PNGs were cached locally for offline use under the user's cache directory.
 
-Quran source completeness and preservation are structural/byte comparisons, not an independent scholarly certification. See `../data/SOURCE.md`. Unsupported GNOME versions, different fonts, real multi-monitor hotplug, and other extensions' interaction with desktop icons remain outside the exercised test matrix.
+## Limits
+
+Only GNOME 46, the Madani 1405 / Hafs image set, and the installed Noto Arabic fonts were exercised. Real monitor hotplug, interactions with third-party desktop-icon extensions, other GNOME releases, other Mushaf styles, audio, translation, and touch gestures are outside this implementation/test matrix.
+
+These source-data and image checks establish structural completeness and preservation, not independent scholarly certification. See `../data/SOURCE.md` and `../data/MADANI-SOURCE.md`. First use of an uncached Madani image requires internet; the transparent-text layout remains fully bundled/offline.

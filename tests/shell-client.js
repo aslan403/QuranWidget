@@ -33,6 +33,9 @@ waitFor(() => evaluate(`Boolean(${actor}?.visible)`), 'page visible');
 expect(evaluate(`${actor}.reactive`) === false, 'page is click-through in desktop background');
 expect(evaluate(`${ext}._content.sections.length`) > 0, 'real offline Quran content loaded');
 expect(evaluate(`${ext}._content.page`) === 1, 'reading starts at saved page');
+waitFor(() => evaluate(`${ext}._asset?.page`) === 1, 'exact Madani image loaded');
+expect(evaluate(`${ext}._settings.get_string('page-layout')`) === 'madani', 'Madani image mode is the default');
+expect(evaluate(`${ext}._asset.surface.getWidth()`) === 1024, 'actual Quran Android page image decoded');
 const initial = evaluate(`({x:${actor}.x,y:${actor}.y})`);
 evaluate(`${ext}._next.activate(null); true`);
 waitFor(() => evaluate(`${ext}._content.page`) === 2, 'next page');
@@ -42,6 +45,7 @@ waitFor(() => evaluate(`${ext}._content.page`) === 1, 'previous page');
 expect(true, 'panel Previous page action updates content');
 evaluate(`${ext}._entry.set_text('604'); ${ext}._entry.clutter_text.emit('activate'); true`);
 waitFor(() => evaluate(`${ext}._content.page`) === 604, 'jump to page');
+waitFor(() => evaluate(`${ext}._asset?.page`) === 604, 'last page image');
 expect(evaluate(`${ext}._next.sensitive`) === false, 'last page disables Next');
 evaluate(`${ext}._entry.set_text('999'); ${ext}._entry.clutter_text.emit('activate'); true`);
 expect(evaluate(`${ext}._settings.get_int('page')`) === 604, 'invalid page rejected');
@@ -53,14 +57,28 @@ waitFor(() => !evaluate(`${actor}.visible`), 'hide in overview');
 expect(true, 'page hides in overview');
 evaluate('Main.overview.hide(); true');
 waitFor(() => evaluate(`${actor}.visible`), 'show desktop');
-// Render all pages inside Shell to catch native paint/shaping failures.
-evaluate(`${ext}._settings.set_int('page', 1); ${ext}._settings.set_int('height', 760); ${ext}._settings.set_int('position-x', 70); ${ext}._settings.set_int('position-y', 50); true`);
-GLib.usleep(1500000);
-const screenshot = GLib.getenv('QURAN_TEST_ROOT') + '/desktop.png';
-const captured = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
-    'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, screenshot]),
-    null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack()[0];
-expect(captured, `real compositor screenshot: ${screenshot}`);
+// Render the actual page and exercise both layouts and automatic dark appearance.
+evaluate(`${ext}._settings.set_int('page', 187); ${ext}._settings.set_int('height', 900); ${ext}._settings.set_int('position-x', 70); ${ext}._settings.set_int('position-y', 50); true`);
+waitFor(() => evaluate(`${ext}._asset?.page`) === 187, 'full Madani page 187');
+function capture(name) {
+    GLib.usleep(500000);
+    const screenshot = GLib.getenv('QURAN_TEST_ROOT') + '/' + name;
+    const captured = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
+        'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, screenshot]),
+        null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack()[0];
+    expect(captured, `real compositor screenshot: ${screenshot}`);
+}
+capture('desktop.png');
+evaluate(`${ext}._settings.set_string('page-theme', 'automatic'); ${ext}._systemSettings.set_string('color-scheme', 'prefer-dark'); true`);
+GLib.usleep(400000);
+capture('desktop-dark.png');
+expect(info().state.deep_unpack() === 1, 'automatic dark theme repaints without Shell errors');
+evaluate(`${ext}._settings.set_string('page-layout', 'transparent'); true`);
+waitFor(() => evaluate(`${ext}._asset === null`), 'transparent layout releases image');
+expect(Math.abs(evaluate(`${actor}.width / ${actor}.height`) - 0.7) < 0.001, 'transparent layout keeps original geometry');
+evaluate(`${ext}._settings.set_string('page-layout', 'madani'); ${ext}._settings.set_string('page-theme', 'light'); ${ext}._systemSettings.set_string('color-scheme', 'default'); true`);
+waitFor(() => evaluate(`${ext}._asset?.page`) === 187, 'restore Madani image');
+expect(Math.abs(evaluate(`${actor}.width / ${actor}.height`) - 560/960) < 0.001, 'Madani layout preserves portrait page geometry');
 call('org.gnome.Shell.Extensions', 'DisableExtension', uuid);
 waitFor(() => info().state.deep_unpack() === 2, 'disable');
 expect(!evaluate(`Boolean(${actor})`), 'disable removes desktop actor');

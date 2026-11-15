@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PROJECT="$PWD"
+SOURCE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quran-desktop/madani-1024-v8"
 export QURAN_TEST_ROOT="$(mktemp -d "${TMPDIR:-$HOME/.cache}/quran-shell.XXXXXX")"
 export XDG_CONFIG_HOME="$QURAN_TEST_ROOT/config"
 export XDG_DATA_HOME="$QURAN_TEST_ROOT/data"
@@ -9,6 +10,12 @@ export XDG_CACHE_HOME="$QURAN_TEST_ROOT/cache"
 export XDG_RUNTIME_DIR="$QURAN_TEST_ROOT/run"
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME/gnome-shell/extensions" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
+mkdir -p "$XDG_CACHE_HOME/quran-desktop/madani-1024-v8"
+for page in 001 002 003 187 604; do
+    if [[ -f "$SOURCE_CACHE/page$page.png" ]]; then
+        cp "$SOURCE_CACHE/page$page.png" "$XDG_CACHE_HOME/quran-desktop/madani-1024-v8/"
+    fi
+done
 cp -a "$PROJECT" "$XDG_DATA_HOME/gnome-shell/extensions/quran-desktop@local"
 DRIVER="$XDG_DATA_HOME/gnome-shell/extensions/quran-test-driver@local"
 mkdir -p "$DRIVER"

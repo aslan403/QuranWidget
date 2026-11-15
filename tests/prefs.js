@@ -27,7 +27,7 @@ function expect(condition, message) {
     print(`PASS: ${message}`);
 }
 const spins = descendants.filter(widget => widget instanceof Gtk.SpinButton);
-expect(spins.length === 6, 'native preferences contain all six numeric controls');
+expect(spins.length === 9, 'native preferences contain all nine numeric controls');
 const pageSpin = spins.find(widget => widget.adjustment.upper === 604);
 pageSpin.set_value(42);
 expect(settings.get_int('page') === 42, 'native page control writes GSettings');
@@ -41,10 +41,22 @@ color.text = '#abcdef';
 expect(settings.get_string('text-color') === '#abcdef', 'valid color is saved');
 settings.set_string('text-color', '#f4f1e9');
 settings.set_int('page', 1);
+const darkButton = descendants.find(widget => widget instanceof Gtk.ToggleButton && widget.name === 'theme-dark');
+expect(Boolean(darkButton), 'native page theme preview cards exist');
+darkButton.active = true;
+expect(settings.get_string('page-theme') === 'dark', 'Dark preview card saves page appearance');
+const nightBackground = spins.find(widget => widget.adjustment.upper === 64);
+nightBackground.set_value(32);
+expect(settings.get_int('night-background-brightness') === 32, 'night background control saves independent brightness');
+settings.set_string('page-theme', 'automatic');
+expect(!darkButton.active, 'automatic appearance clears manual color selection');
+settings.set_string('page-theme', 'light');
+settings.set_int('night-background-brightness', 0);
 window.present();
-const loop = new GLib.MainLoop(null, false);
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 700, () => {loop.quit(); return GLib.SOURCE_REMOVE;});
-loop.run();
+// Yield the JS job queue so cached-image promises can update the preview cards.
+await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+    resolve(); return GLib.SOURCE_REMOVE;
+}));
 const screenshot = GLib.getenv('QURAN_TEST_ROOT') + '/preferences.png';
 const [captured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
     'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, screenshot]),

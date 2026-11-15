@@ -1,7 +1,7 @@
 {
   "uuid": "quran-desktop@local",
   "name": "Quran Desktop",
-  "description": "A quiet, transparent Quran reader for your desktop. Page references use reflowed Arabic text, not scanned Mushaf images.",
+  "description": "Madani Quran page images with Quran Android-style light, sepia, and dark themes, plus a transparent desktop text layout.",
   "shell-version": ["46"],
   "settings-schema": "org.gnome.shell.extensions.quran-desktop",
   "version": 1

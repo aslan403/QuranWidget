@@ -5,7 +5,7 @@
       <range min="1" max="604"/>
       <default>1</default>
       <summary>Reading page</summary>
-      <description>Quran page reference. Text is reflowed, not a scanned Mushaf page.</description>
+      <description>Page number 1–604. Madani mode preserves the original image layout; transparent text mode reflows verses.</description>
     </key>
     <key name="height" type="i">
       <range min="320" max="1600"/>
@@ -49,6 +49,33 @@
     <key name="show-backdrop" type="b">
       <default>false</default>
       <summary>Show a subtle backdrop behind the text</summary>
+    </key>
+    <key name="page-layout" type="s">
+      <choices><choice value="madani"/><choice value="transparent"/></choices>
+      <default>'madani'</default>
+      <summary>Madani image pages or transparent reflowed text</summary>
+    </key>
+    <key name="page-theme" type="s">
+      <choices><choice value="light"/><choice value="sepia"/><choice value="dark"/><choice value="automatic"/></choices>
+      <default>'light'</default>
+      <summary>Quran Android page appearance</summary>
+    </key>
+    <key name="night-text-brightness" type="i">
+      <range min="120" max="255"/><default>255</default>
+      <summary>Night text brightness</summary>
+    </key>
+    <key name="night-background-brightness" type="i">
+      <range min="0" max="64"/><default>0</default>
+      <summary>Night background brightness</summary>
+    </key>
+    <key name="use-old-background" type="b">
+      <default>false</default><summary>Use the classic yellow paper instead of shaded light paper</summary>
+    </key>
+    <key name="show-page-info" type="b">
+      <default>true</default><summary>Show surah, juz, and page number around the image</summary>
+    </key>
+    <key name="page-margin" type="i">
+      <range min="12" max="56"/><default>24</default><summary>Madani page side margins</summary>
     </key>
   </schema>
 </schemalist>

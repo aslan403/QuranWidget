@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const model = await import('../model.js').catch(() => ({}));
+test('Madani geometry uses a portrait page ratio without clipping small monitors', () => {
+    const bounds = model.widgetBounds({x: 0,y: 0,width: 300,height: 200}, 760, 100, 100, 560/960);
+    assert.ok(Math.abs(bounds.width / bounds.height - 560/960) < 0.00001);
+    assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= 301);
+});
 test('widget geometry keeps its aspect ratio and stays inside the work area', () => {
     assert.equal(typeof model.widgetBounds, 'function', 'desktop geometry must exist');
     assert.deepEqual(model.widgetBounds({x: 100, y: 30, width: 1200, height: 800}, 600, 100, 50),
