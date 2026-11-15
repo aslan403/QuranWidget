@@ -3,6 +3,23 @@ export const MADANI_BASE_URL = 'https://files.quran.app/hafs/madani/width_1024/'
 export const MADANI_CACHE_NAME = 'madani-1024-v8';
 export const MADANI_WIDTH = 560;
 export const MADANI_HEIGHT = 960;
+export const TAJWEED_COMMIT = '85e22a084b59fbe6b51d0ad9f090f9e0d4ceae97';
+const EDITIONS = Object.freeze({
+    madani: Object.freeze({key: 'madani', title: 'المصحف المدني', color: false,
+        cacheName: MADANI_CACHE_NAME, baseUrl: MADANI_BASE_URL}),
+    tajweed: Object.freeze({key: 'tajweed', title: 'مصحف التجويد', color: true,
+        cacheName: 'tajweed-85e22a0',
+        baseUrl: `https://raw.githubusercontent.com/HiIAmMoot/quran-android-tajweed-page-provider/${TAJWEED_COMMIT}/images/indexed/`}),
+});
+
+export function mushafEdition(key) {
+    return EDITIONS[key] ?? EDITIONS.madani;
+}
+
+export function editionPageUrl(edition, page) {
+    const info = mushafEdition(edition);
+    return info.baseUrl + (info.color ? pageFilename(page).slice(4) : pageFilename(page));
+}
 
 export function resolvePageTheme(requested, options = {}) {
     const name = requested === 'automatic' ? (options.systemDark ? 'dark' : 'light')
@@ -41,6 +58,26 @@ export function inkMask(pixels, width, height, rowstride, channels) {
         }
     }
     return mask;
+}
+
+// Quran Android NightModeColorMatrix: invert lightness, not each color channel.
+export function nightModePixels(pixels, width, height, rowstride, channels, textBrightness, backgroundBrightness) {
+    const text = Math.max(120, Math.min(255, textBrightness));
+    const background = Math.max(0, Math.min(64, backgroundBrightness));
+    const scale = 1 + (text - background) / 255;
+    const output = new Uint8Array(width * height * 4);
+    const clamp = value => Math.max(0, Math.min(255, Math.round(value)));
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const source = y * rowstride + x * channels;
+            const target = (y * width + x) * 4;
+            const lightness = .3 * pixels[source] + .4 * pixels[source + 1] + .3 * pixels[source + 2];
+            for (let channel = 0; channel < 3; channel++)
+                output[target + channel] = clamp(pixels[source + channel] - scale * lightness + text);
+            output[target + 3] = channels === 4 ? pixels[source + 3] : 255;
+        }
+    }
+    return output;
 }
 
 export function pageFilename(page) {

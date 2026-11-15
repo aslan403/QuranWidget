@@ -40,7 +40,13 @@ expect(settings.get_string('text-color') === '#f4f1e9' && color.has_css_class('e
 color.text = '#abcdef';
 expect(settings.get_string('text-color') === '#abcdef', 'valid color is saved');
 settings.set_string('text-color', '#f4f1e9');
-settings.set_int('page', 1);
+settings.set_int('page', 3);
+const edition = descendants.find(widget => widget instanceof Adw.ComboRow && widget.name === 'mushaf-edition');
+expect(Boolean(edition) && edition.model.get_string(1) === 'مصحف التجويد', 'native Mushaf selector includes the exact مصحف التجويد label');
+edition.selected = 0;
+expect(settings.get_string('mushaf-edition') === 'madani', 'native edition selector can return to Madani');
+edition.selected = 1;
+expect(settings.get_string('mushaf-edition') === 'tajweed', 'native edition selector saves Tajweed selection');
 const darkButton = descendants.find(widget => widget instanceof Gtk.ToggleButton && widget.name === 'theme-dark');
 expect(Boolean(darkButton), 'native page theme preview cards exist');
 darkButton.active = true;

@@ -55,6 +55,12 @@
       <default>'madani'</default>
       <summary>Madani image pages or transparent reflowed text</summary>
     </key>
+    <key name="mushaf-edition" type="s">
+      <choices><choice value="madani"/><choice value="tajweed"/></choices>
+      <default>'madani'</default>
+      <summary>Mushaf edition: Madani or مصحف التجويد</summary>
+      <description>Tajweed uses original color-coded page images, never a monochrome mask.</description>
+    </key>
     <key name="page-theme" type="s">
       <choices><choice value="light"/><choice value="sepia"/><choice value="dark"/><choice value="automatic"/></choices>
       <default>'light'</default>

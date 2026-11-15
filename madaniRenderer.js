@@ -48,8 +48,14 @@ export function drawMadaniPage(cr, width, height, content, asset, options = {}) 
         cr.save();
         cr.translate(bounds.x, bounds.y);
         cr.scale(bounds.width / asset.surface.getWidth(), bounds.height / asset.surface.getHeight());
-        cr.setSourceRGB(...palette.ink);
-        cr.maskSurface(asset.surface, 0, 0);
+        if (asset.color) {
+            // Tajweed colors are authoritative page content, never a monochrome mask.
+            cr.setSourceSurface(asset.forTheme(palette), 0, 0);
+            cr.paint();
+        } else {
+            cr.setSourceRGB(...palette.ink);
+            cr.maskSurface(asset.surface, 0, 0);
+        }
         cr.restore();
     } else {
         label(cr, options.status ?? 'Downloading Madani page…', margin, 440, MADANI_WIDTH - 2 * margin, 18, palette.ink);

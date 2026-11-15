@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PROJECT="$PWD"
 SOURCE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quran-desktop/madani-1024-v8"
+TAJWEED_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quran-desktop/tajweed-85e22a0"
 export QURAN_TEST_ROOT="$(mktemp -d "${TMPDIR:-$HOME/.cache}/quran-shell.XXXXXX")"
 export XDG_CONFIG_HOME="$QURAN_TEST_ROOT/config"
 export XDG_DATA_HOME="$QURAN_TEST_ROOT/data"
@@ -14,6 +15,12 @@ mkdir -p "$XDG_CACHE_HOME/quran-desktop/madani-1024-v8"
 for page in 001 002 003 187 604; do
     if [[ -f "$SOURCE_CACHE/page$page.png" ]]; then
         cp "$SOURCE_CACHE/page$page.png" "$XDG_CACHE_HOME/quran-desktop/madani-1024-v8/"
+    fi
+done
+mkdir -p "$XDG_CACHE_HOME/quran-desktop/tajweed-85e22a0"
+for page in 001 002 003 187 604; do
+    if [[ -f "$TAJWEED_CACHE/page$page.png" ]]; then
+        cp "$TAJWEED_CACHE/page$page.png" "$XDG_CACHE_HOME/quran-desktop/tajweed-85e22a0/"
     fi
 done
 cp -a "$PROJECT" "$XDG_DATA_HOME/gnome-shell/extensions/quran-desktop@local"

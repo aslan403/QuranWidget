@@ -1,7 +1,7 @@
 {
   "uuid": "quran-desktop@local",
   "name": "Quran Desktop",
-  "description": "Madani Quran page images with Quran Android-style light, sepia, and dark themes, plus a transparent desktop text layout.",
+  "description": "Madani or color-coded مصحف التجويد pages with light, sepia, and color-preserving dark themes, plus transparent desktop text.",
   "shell-version": ["46"],
   "settings-schema": "org.gnome.shell.extensions.quran-desktop",
   "version": 1

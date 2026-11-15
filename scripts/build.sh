@@ -29,6 +29,7 @@ files=(
     data/quran.json
     data/SOURCE.md
     data/MADANI-SOURCE.md
+    data/TAJWEED-SOURCE.md
     README.md
     LICENSE
 )

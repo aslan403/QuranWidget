@@ -79,6 +79,18 @@ expect(Math.abs(evaluate(`${actor}.width / ${actor}.height`) - 0.7) < 0.001, 'tr
 evaluate(`${ext}._settings.set_string('page-layout', 'madani'); ${ext}._settings.set_string('page-theme', 'light'); ${ext}._systemSettings.set_string('color-scheme', 'default'); true`);
 waitFor(() => evaluate(`${ext}._asset?.page`) === 187, 'restore Madani image');
 expect(Math.abs(evaluate(`${actor}.width / ${actor}.height`) - 560/960) < 0.001, 'Madani layout preserves portrait page geometry');
+evaluate(`${ext}._settings.set_int('page', 3); ${ext}._settings.set_string('mushaf-edition', 'tajweed'); true`);
+waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 3`), 'Tajweed image loaded after edition switch');
+expect(evaluate(`${ext}._asset.color`) === true, 'مصحف التجويد uses original color imagery, never a grayscale mask');
+capture('tajweed-desktop.png');
+evaluate(`${ext}._settings.set_string('page-theme', 'dark'); true`);
+capture('tajweed-desktop-dark.png');
+expect(info().state.deep_unpack() === 1, 'color-preserving Tajweed night page renders inside Shell');
+evaluate(`${ext}._settings.set_int('page', 604); true`);
+waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 604`), 'last Tajweed page');
+expect(true, 'Tajweed navigation reaches page 604 without mixing edition caches');
+evaluate(`${ext}._settings.set_int('page', 3); ${ext}._settings.set_string('page-theme', 'light'); true`);
+waitFor(() => evaluate(`${ext}._asset?.page === 3`), 'restore Tajweed page 3');
 call('org.gnome.Shell.Extensions', 'DisableExtension', uuid);
 waitFor(() => info().state.deep_unpack() === 2, 'disable');
 expect(!evaluate(`Boolean(${actor})`), 'disable removes desktop actor');

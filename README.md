@@ -20,7 +20,15 @@ Its native preferences include:
 - **Page information:** surah, juz, and page number.
 - Side margins, overall widget height, opacity, monitor, and placement.
 
-This matches the **page presentation and related appearance settings**, not every feature of the Android app. Only the Madani 1405 / Hafs page set is supported; Warsh, Qaloon, Naskh alternatives, audio, translations, verse selection, and Android navigation gestures are not implemented.
+This matches the **page presentation and related appearance settings**, not every feature of the Android app. Madani 1405 / Hafs and the color-coded **مصحف التجويد** edition are supported. Warsh, Qaloon, Naskh alternatives, audio, translations, verse selection, and Android navigation gestures are not implemented.
+
+### مصحف التجويد — color-coded Tajweed
+
+In **Reading → Page layout**, choose **Mushaf page images**, then select **مصحف التجويد** under **المصحف · Mushaf edition**. It is also selectable from the top-bar menu under **المصحف · Mushaf**. This is a separate page edition, not a Light / Sepia / Dark theme.
+
+Tajweed uses original colored PNGs from a pinned 604-page community source associated with Quran Android's Tajweed work. Light and Sepia preserve the original colors. Dark uses the Android app's hue-preserving night matrix instead of flattening the image into a grayscale mask. Changing edition preserves your page number and keeps each edition's cache separate.
+
+Tajweed pages download as needed from the pinned GitHub source and then work offline from cache. **The all-pages download helper below currently downloads Madani only**, not the Tajweed collection. Source, attribution limits, and tests: [data/TAJWEED-SOURCE.md](data/TAJWEED-SOURCE.md).
 
 ### Transparent text — Zclock style
 

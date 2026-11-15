@@ -9,7 +9,7 @@ import {clampPage, pageContent, widgetBounds} from './model.js';
 import {drawPage} from './renderer.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {MadaniPageStore} from './pageStore.js';
-import {MADANI_WIDTH, MADANI_HEIGHT} from './pageModel.js';
+import {MADANI_WIDTH, MADANI_HEIGHT, mushafEdition, resolvePageTheme} from './pageModel.js';
 
 export default class QuranDesktopExtension extends Extension {
     enable() {
@@ -17,8 +17,9 @@ export default class QuranDesktopExtension extends Extension {
         this._generation = {active: true};
         this._settings = this.getSettings();
         this._systemSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        this._store = new MadaniPageStore();
+        this._store = new MadaniPageStore(null, this._settings.get_string('mushaf-edition'));
         this._imagePage = 0;
+        this._imageEdition = null;
         this._asset = null;
         this._cancellable = null;
         this._imageStatus = 'Downloading Madani page…';
@@ -59,7 +60,10 @@ export default class QuranDesktopExtension extends Extension {
         Main.layoutManager._backgroundGroup.add_child(this._area);
         this._createMenu();
         this._connect(this._settings, 'changed', () => this._update());
-        this._connect(this._systemSettings, 'changed::color-scheme', () => this._area.queue_repaint());
+        this._connect(this._systemSettings, 'changed::color-scheme', () => {
+            this._prepareColorPage();
+            this._area.queue_repaint();
+        });
         this._connect(Main.layoutManager, 'monitors-changed', () => this._update());
         this._connect(global.display, 'workareas-changed', () => this._update());
         this._connect(Main.overview, 'showing', () => this._syncVisibility());
@@ -98,6 +102,10 @@ export default class QuranDesktopExtension extends Extension {
         });
         jump.add_child(this._entry);
         this._indicator.menu.addMenuItem(jump);
+        const editions = new PopupMenu.PopupSubMenuMenuItem('المصحف · Mushaf');
+        for (const key of ['madani', 'tajweed'])
+            editions.menu.addAction(mushafEdition(key).title, () => this._settings.set_string('mushaf-edition', key));
+        this._indicator.menu.addMenuItem(editions);
         const themes = new PopupMenu.PopupSubMenuMenuItem('Page appearance');
         for (const [key, title] of [['light','Light'], ['sepia','Sepia'], ['dark','Dark'], ['automatic','Match desktop theme']])
             themes.menu.addAction(title, () => this._settings.set_string('page-theme', key));
@@ -115,23 +123,42 @@ export default class QuranDesktopExtension extends Extension {
         this._settings.set_int('page', clampPage(this._settings.get_int('page') + delta));
     }
 
+    _prepareColorPage() {
+        if (!this._asset?.color) return;
+        const theme = resolvePageTheme(this._settings.get_string('page-theme'), {
+            systemDark: this._systemSettings.get_string('color-scheme') === 'prefer-dark',
+            textBrightness: this._settings.get_int('night-text-brightness'),
+            backgroundBrightness: this._settings.get_int('night-background-brightness'),
+        });
+        // Native decoding / disk writes must finish before the compositor paints.
+        this._asset.forTheme(theme);
+    }
+
     async _loadMadaniPage(page) {
         this._cancellable?.cancel();
+        const edition = this._settings.get_string('mushaf-edition');
+        const title = mushafEdition(edition).title;
+        if (this._store.edition !== edition) {
+            this._store.destroy();
+            this._store = new MadaniPageStore(null, edition);
+        }
         const cancellable = new Gio.Cancellable();
         const generation = this._generation;
         this._cancellable = cancellable;
         this._imagePage = page;
+        this._imageEdition = edition;
         this._asset = null;
-        this._imageStatus = 'Downloading Madani page…';
-        this._downloadStatus.label.set_text('Loading Madani page…');
+        this._imageStatus = `Loading ${title}…`;
+        this._downloadStatus.label.set_text(`Loading ${title}…`);
         this._area.queue_repaint();
         const current = () => generation.active && this._generation === generation && this._cancellable === cancellable;
         try {
             const asset = await this._store.load(page, cancellable);
             if (!current()) return;
             this._asset = asset;
+            this._prepareColorPage();
             this._imageStatus = '';
-            this._downloadStatus.label.set_text('Madani image cached · click to reload');
+            this._downloadStatus.label.set_text(`${title} · cached · click to reload`);
             this._area.queue_repaint();
         } catch (error) {
             if (!current() || cancellable.is_cancelled()) return;
@@ -145,18 +172,20 @@ export default class QuranDesktopExtension extends Extension {
     _update() {
         const page = this._settings.get_int('page');
         const madani = this._settings.get_string('page-layout') === 'madani';
+        const edition = this._settings.get_string('mushaf-edition');
         if (this._content.page !== page) this._content = pageContent(this._data, page);
-        this._title.label.set_text(`${this._content.sections[0]?.englishName ?? 'Quran'} · Page ${page} / 604`);
+        this._title.label.set_text(`${madani ? mushafEdition(edition).title + ' · ' : ''}${this._content.sections[0]?.englishName ?? 'Quran'} · Page ${page} / 604`);
         this._previous.setSensitive(page > 1);
         this._next.setSensitive(page < 604);
         this._downloadStatus.visible = madani;
-        if (madani && page !== this._imagePage) {
+        if (madani && (page !== this._imagePage || edition !== this._imageEdition)) {
             this._loadMadaniPage(page);
         } else if (!madani) {
             this._cancellable?.cancel();
             this._asset = null;
             this._imagePage = 0;
         }
+        this._prepareColorPage();
         const monitors = Main.layoutManager.monitors;
         if (monitors.length) {
             const requested = this._settings.get_int('monitor');

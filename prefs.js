@@ -5,20 +5,21 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 import {MadaniPageStore} from './pageStore.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {pageContent} from './model.js';
+import {resolvePageTheme} from './pageModel.js';
 
 export default class QuranDesktopPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         const signals = [];
         const connect = (signal, callback) => signals.push(settings.connect(signal, callback));
-        const store = new MadaniPageStore();
-        const cancellable = new Gio.Cancellable();
+        let store = null;
+        let cancellable = new Gio.Cancellable();
         let closed = false;
         const cleanup = () => {
             if (closed) return;
             closed = true;
             cancellable.cancel();
-            store.destroy();
+            store?.destroy();
             for (const id of signals) settings.disconnect(id);
         };
         window.connect('close-request', () => {cleanup(); return false;});
@@ -29,16 +30,23 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         const page = new Adw.PreferencesPage({title: 'Reading', icon_name: 'accessories-dictionary-symbolic'});
         window.add(page);
         const reading = new Adw.PreferencesGroup({title: 'Quran pages',
-            description: 'Madani 1405 / Hafs pages from Quran for Android. Exact line breaks and surah ornaments; images are downloaded once and cached locally.'});
+            description: 'Choose a Mushaf edition. Original line breaks, ornaments, and Tajweed colors are preserved; pages download once and are cached locally.'});
         page.add(reading);
         this._addSpin(reading, settings, 'page', 'Page', 'Reading position · 1–604', 1, 604);
         const layout = new Adw.ComboRow({title: 'Page layout',
             subtitle: 'Original printed page or the minimal wallpaper-style text',
-            model: Gtk.StringList.new(['Madani page images', 'Transparent text']),
+            model: Gtk.StringList.new(['Mushaf page images', 'Transparent text']),
             selected: settings.get_string('page-layout') === 'madani' ? 0 : 1});
         reading.add(layout);
         layout.connect('notify::selected', () => settings.set_string('page-layout', layout.selected === 0 ? 'madani' : 'transparent'));
         connect('changed::page-layout', () => {layout.selected = settings.get_string('page-layout') === 'madani' ? 0 : 1;});
+        const edition = new Adw.ComboRow({name: 'mushaf-edition', title: 'المصحف · Mushaf edition',
+            subtitle: 'Color-coded Tajweed is a separate edition, not a theme',
+            model: Gtk.StringList.new(['المصحف المدني', 'مصحف التجويد']),
+            selected: settings.get_string('mushaf-edition') === 'tajweed' ? 1 : 0});
+        reading.add(edition);
+        edition.connect('notify::selected', () => settings.set_string('mushaf-edition', edition.selected === 1 ? 'tajweed' : 'madani'));
+        connect('changed::mushaf-edition', () => {edition.selected = settings.get_string('mushaf-edition') === 'tajweed' ? 1 : 0;});
 
         const previewGroup = new Adw.PreferencesGroup({title: 'Page appearance',
             description: 'Quran Android colors: shaded light paper, warm sepia, or a configurable night page.'});
@@ -50,8 +58,14 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         previewGroup.add(cards);
         const [, bytes] = this.dir.get_child('data').get_child('quran.json').load_contents(null);
         const data = JSON.parse(new TextDecoder().decode(bytes));
-        const content = pageContent(data, settings.get_int('page'));
+        let content = pageContent(data, settings.get_int('page'));
         let asset = null;
+        const preparePreview = () => {
+            if (asset?.color) asset.forTheme(resolvePageTheme('dark', {
+                textBrightness: settings.get_int('night-text-brightness'),
+                backgroundBrightness: settings.get_int('night-background-brightness'),
+            }));
+        };
         const buttons = [];
         const previews = [];
         for (const [theme, title] of [['light','Light'], ['sepia','Sepia'], ['dark','Dark']]) {
@@ -74,14 +88,30 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
             buttons.push([button, theme]);
             previews.push(preview);
         }
-        store.load(content.page, cancellable).then(result => {
-            if (closed) return;
-            asset = result;
+        const loadPreview = () => {
+            cancellable.cancel();
+            store?.destroy();
+            cancellable = new Gio.Cancellable();
+            const request = cancellable;
+            asset = null;
+            content = pageContent(data, settings.get_int('page'));
             for (const preview of previews) preview.queue_draw();
-        }).catch(error => {
-            if (!closed && !cancellable.is_cancelled())
-                console.warn(`[Quran Desktop] Page preview unavailable: ${error.message}`);
-        });
+            if (settings.get_string('page-layout') !== 'madani') return;
+            store = new MadaniPageStore(null, settings.get_string('mushaf-edition'));
+            store.load(content.page, request).then(result => {
+                if (closed || request !== cancellable) return;
+                asset = result;
+                preparePreview();
+                for (const preview of previews) preview.queue_draw();
+            }).catch(error => {
+                if (!closed && request === cancellable && !request.is_cancelled())
+                    console.warn(`[Quran Desktop] Page preview unavailable: ${error.message}`);
+            });
+        };
+        connect('changed::mushaf-edition', loadPreview);
+        connect('changed::page', loadPreview);
+        connect('changed::page-layout', loadPreview);
+        loadPreview();
         const automatic = new Adw.SwitchRow({title: 'Match desktop theme',
             subtitle: 'Follow GNOME’s light / dark appearance automatically'});
         appearance.add(automatic);
@@ -104,6 +134,8 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
             textBrightness.sensitive = backgroundBrightness.sensitive = theme === 'dark' || theme === 'automatic';
             old.sensitive = theme === 'light' || theme === 'automatic';
             appearance.sensitive = previewGroup.sensitive = settings.get_string('page-layout') === 'madani';
+            edition.sensitive = settings.get_string('page-layout') === 'madani';
+            preparePreview();
             for (const preview of previews) preview.queue_draw();
         };
         connect('changed', sync);
@@ -126,9 +158,10 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         this._addEntry(transparent, settings, 'text-color', 'Text color', '#RRGGBB', value => /^#[0-9a-fA-F]{6}$/.test(value), 'Enter a #RRGGBB color.');
         this._addSwitch(transparent, settings, 'show-backdrop', 'Subtle backdrop', 'Add a dark backing behind transparent text');
         const sources = new Adw.PreferencesGroup({title: 'Sources & offline use',
-            description: 'Madani page images belong to the King Fahd Quran Complex, supplied by Quran for Android. Text: Tanzil via AlQuran Cloud. Images are not bundled in the extension ZIP. To cache all 604 pages, run python3 scripts/download-pages.py from the source project.'});
+            description: 'Madani images: King Fahd Quran Complex via Quran for Android. Tajweed: pinned community page-provider images; original colors preserved. Text: Tanzil via AlQuran Cloud. Images cache as read and are not bundled. The full offline download helper currently covers Madani only. See the source-specific notices.'});
         widget.add(sources);
         sources.add(new Gtk.LinkButton({uri: 'https://github.com/quran/quran_android', label: 'Quran for Android · source and credits'}));
+        sources.add(new Gtk.LinkButton({uri: 'https://github.com/HiIAmMoot/quran-android-tajweed-page-provider', label: 'مصحف التجويد · original page source'}));
         sources.add(new Gtk.LinkButton({uri: 'https://tanzil.net/', label: 'Tanzil Project · Quran text'}));
     }
 
