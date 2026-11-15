@@ -8,7 +8,9 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 - `npm run test:render`: native Cairo / Pango text rendering, all 604 text pages fitting without missing glyphs, native Madani image decoding and caching, cancellation, and original-image rendering in Light / Sepia / Dark passed.
 - Full source image pack: all 604 original PNGs validated for hashes, dimensions, and successful PNG verification. Original image data totals 56,620,780 bytes; no image pack is included in the software ZIP.
 - `bash tests/run-shell.sh`: real isolated Shell loading and click-through background actor; actual 1024-pixel Madani image decoded; panel next/previous and jump to page 604; invalid page rejected; last-page boundary; live placement; overview hiding; automatic dark theme repaint; switching to transparent text and back with the appropriate aspect ratios; disable cleanup and single-actor re-enable.
-- Native preferences actually opened in that compositor: nine numeric controls, bidirectional page bindings, font/color controls, rejected invalid color, theme-preview buttons writing settings, independent night background control, and automatic appearance clearing manual selection. Real image preview cards were visually inspected after yielding the GJS promise job queue.
+- Native preferences actually opened in that compositor: eleven numeric controls, bidirectional page/background-opacity/corner-radius bindings, font/color controls, rejected invalid color, theme-preview buttons writing settings, independent night background control, and automatic appearance clearing manual selection. Real image preview cards were visually inspected after yielding the GJS promise job queue.
+- `gjs -m tests/surface-style.js`: native RGBA tests verify independent paper opacity, fully opaque ink at 0% and 25% paper opacity, preserved overall-opacity behavior, consistent opacity for the text backing, square/rounded corner endpoints, and partially transparent antialiased edge pixels.
+- Real compositor screenshot pixels verify 40% background blending with the wallpaper while an opaque black Quran ink pixel stays black. Native preferences exercise full 0–100% background opacity and 0–64 px corner-radius ranges and both directions of their GSettings bindings.
 - Strict schema compilation and explicit-allowlist ZIP build.
 - ZIP integrity checked and every archive member compared against the source; no tests, unsafe-mode driver, or full page image cache packaged.
 - Native `gnome-extensions install --force` in an isolated XDG_DATA_HOME, followed by installed-file readback comparisons.
@@ -21,6 +23,8 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 - `tajweed-themes.png`: original Tajweed page 3 in Light, Sepia, and Dark; color markings retained in every theme.
 - `tajweed-desktop.png`, `tajweed-desktop-dark.png`: actual compositor screenshots of the colored edition.
 - `tajweed-preferences.png`: native Arabic Mushaf selector with مصحف التجويد selected.
+- `surface-style.png`: actual GNOME page at 40% paper opacity with a 36 px corner radius.
+- `surface-style-preferences.png`: actual Desktop tab with Background & corners controls and separate Overall opacity.
 - `madani-themes.png`: same original page rendered in the three page colors, using the production renderer.
 - `page-{1,2,187,604}.png`: original transparent-text renderer examples, retained to document that option.
 

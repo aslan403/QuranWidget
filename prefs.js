@@ -76,7 +76,9 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
                 drawMadaniPage(cr, width, height, content, asset, {theme,
                     status: 'القرآن الكريم', oldBackground: settings.get_boolean('use-old-background'),
                     textBrightness: settings.get_int('night-text-brightness'),
-                    backgroundBrightness: settings.get_int('night-background-brightness')});
+                    backgroundBrightness: settings.get_int('night-background-brightness'),
+                    backgroundOpacity: settings.get_int('background-opacity') / 100,
+                    cornerRadius: settings.get_int('corner-radius') * height / settings.get_int('height')});
             });
             box.append(preview);
             box.append(new Gtk.Label({label: title, margin_bottom: 6}));
@@ -143,10 +145,17 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
 
         const widget = new Adw.PreferencesPage({title: 'Desktop', icon_name: 'preferences-desktop-display-symbolic'});
         window.add(widget);
+        const surfaceStyle = new Adw.PreferencesGroup({title: 'Background & corners',
+            description: 'Adjust the paper without fading the Quran text. Also applies to the optional transparent-text backdrop.'});
+        widget.add(surfaceStyle);
+        this._addSpin(surfaceStyle, settings, 'background-opacity', 'Background opacity',
+            '0% transparent · 100% solid · Quran ink stays opaque', 0, 100);
+        this._addSpin(surfaceStyle, settings, 'corner-radius', 'Corner radius',
+            'Logical pixels · 0 square · 64 rounded · smooth edges', 0, 64, 2);
         const placement = new Adw.PreferencesGroup({title: 'Size & placement', description: 'The page stays below your windows and remains click-through.'});
         widget.add(placement);
         this._addSpin(placement, settings, 'height', 'Height', 'Logical pixels · 320–1600', 320, 1600, 10);
-        this._addSpin(placement, settings, 'opacity', 'Opacity', 'Whole widget · 20–100%', 20, 100);
+        this._addSpin(placement, settings, 'opacity', 'Overall opacity', 'Fades both Quran ink and paper · 20–100%', 20, 100);
         this._addSpin(placement, settings, 'position-x', 'Horizontal position', '0% left · 100% right', 0, 100);
         this._addSpin(placement, settings, 'position-y', 'Vertical position', '0% top · 100% bottom', 0, 100);
         this._addSpin(placement, settings, 'monitor', 'Monitor', '−1 primary monitor · 0–15 monitor index', -1, 15);
@@ -156,7 +165,7 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         widget.add(transparent);
         this._addEntry(transparent, settings, 'font-name', 'Arabic font', 'For example Noto Naskh Arabic', value => value.trim().length > 0, 'Enter a font family.');
         this._addEntry(transparent, settings, 'text-color', 'Text color', '#RRGGBB', value => /^#[0-9a-fA-F]{6}$/.test(value), 'Enter a #RRGGBB color.');
-        this._addSwitch(transparent, settings, 'show-backdrop', 'Subtle backdrop', 'Add a dark backing behind transparent text');
+        this._addSwitch(transparent, settings, 'show-backdrop', 'Text backdrop', 'Enable a dark backing; style it with Background opacity and Corner radius above');
         const sources = new Adw.PreferencesGroup({title: 'Sources & offline use',
             description: 'Madani images: King Fahd Quran Complex via Quran for Android. Tajweed: pinned community page-provider images; original colors preserved. Text: Tanzil via AlQuran Cloud. Images cache as read and are not bundled. The full offline download helper currently covers Madani only. See the source-specific notices.'});
         widget.add(sources);
@@ -174,7 +183,7 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
 
     _addSpin(group, settings, key, title, subtitle, lower, upper, step = 1) {
         const row = new Adw.ActionRow({title, subtitle});
-        const spin = new Gtk.SpinButton({adjustment: new Gtk.Adjustment({lower, upper,
+        const spin = new Gtk.SpinButton({name: key, adjustment: new Gtk.Adjustment({lower, upper,
             step_increment: step, page_increment: step * 10}), numeric: true, digits: 0,
         valign: Gtk.Align.CENTER, width_chars: 5});
         settings.bind(key, spin, 'value', Gio.SettingsBindFlags.DEFAULT);

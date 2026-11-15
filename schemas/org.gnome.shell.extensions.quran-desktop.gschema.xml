@@ -27,6 +27,18 @@
       <default>100</default>
       <summary>Widget opacity percentage</summary>
     </key>
+    <key name="background-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>100</default>
+      <summary>Paper background opacity percentage</summary>
+      <description>0 is transparent and 100 is solid. Does not fade Quran ink; the overall opacity setting still affects the whole widget.</description>
+    </key>
+    <key name="corner-radius" type="i">
+      <range min="0" max="64"/>
+      <default>24</default>
+      <summary>Smooth corner radius in logical pixels</summary>
+      <description>0 gives square corners. Applies to Mushaf pages and to the optional transparent-text backdrop.</description>
+    </key>
     <key name="monitor" type="i">
       <range min="-1" max="15"/>
       <default>-1</default>

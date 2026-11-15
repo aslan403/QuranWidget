@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GdkPixbuf from 'gi://GdkPixbuf';
 
 function call(iface, method, params = null) {
     return Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell', iface,
@@ -90,7 +91,37 @@ evaluate(`${ext}._settings.set_int('page', 604); true`);
 waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 604`), 'last Tajweed page');
 expect(true, 'Tajweed navigation reaches page 604 without mixing edition caches');
 evaluate(`${ext}._settings.set_int('page', 3); ${ext}._settings.set_string('page-theme', 'light'); true`);
-waitFor(() => evaluate(`${ext}._asset?.page === 3`), 'restore Tajweed page 3');
+waitFor(() => evaluate(`${ext}._asset?.page`) === 3, 'restore Tajweed page 3');
+evaluate(`${ext}._settings.set_int('background-opacity', 40); ${ext}._settings.set_int('corner-radius', 36); true`);
+capture('surface-style.png');
+const bounds = evaluate(`({x:${actor}.x,y:${actor}.y,width:${actor}.width,height:${actor}.height})`);
+function screenshotPixels(name) {
+    const image = GdkPixbuf.Pixbuf.new_from_file(GLib.getenv('QURAN_TEST_ROOT') + '/' + name);
+    const pixels = image.get_pixels();
+    return (x, y) => {
+        const offset = Math.round(y) * image.rowstride + Math.round(x) * image.n_channels;
+        return [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+    };
+}
+const opaquePaper = screenshotPixels('tajweed-desktop.png');
+const styledPaper = screenshotPixels('surface-style.png');
+const sampleX = bounds.x + bounds.width / 2;
+const sampleY = bounds.y + 8;
+const wallpaper = styledPaper(bounds.x - 10, sampleY);
+const originalPaper = opaquePaper(sampleX, sampleY);
+const blendedPaper = styledPaper(sampleX, sampleY);
+expect(blendedPaper.every((channel, index) => Math.abs(channel - (.4 * originalPaper[index] + .6 * wallpaper[index])) <= 3),
+    'actual compositor paper blends at the configured 40% background opacity');
+let preservedInk = false;
+for (let y = Math.ceil(bounds.y + 100); y < bounds.y + bounds.height - 100 && !preservedInk; y++) {
+    for (let x = Math.ceil(bounds.x + 50); x < bounds.x + bounds.width - 50; x++) {
+        if (opaquePaper(x, y).every(channel => channel === 0)) {
+            preservedInk = styledPaper(x, y).every(channel => channel === 0);
+            if (preservedInk) break;
+        }
+    }
+}
+expect(preservedInk, 'actual Quran ink is not faded by background-opacity changes');
 call('org.gnome.Shell.Extensions', 'DisableExtension', uuid);
 waitFor(() => info().state.deep_unpack() === 2, 'disable');
 expect(!evaluate(`Boolean(${actor})`), 'disable removes desktop actor');

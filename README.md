@@ -88,6 +88,16 @@ gnome-extensions prefs quran-desktop@local
 
 The **Reading** tab has page selection, layout, theme preview cards, and page configuration. The **Desktop** tab contains placement, transparency, text-only styling, and source credits. The desktop itself never consumes pointer input.
 
+### Background transparency and rounded corners
+
+Open **Desktop → Background & corners**:
+
+- **Background opacity:** 0–100%. At 0%, the drawn paper is transparent; at 100%, it is solid. Quran text and Tajweed colors keep their own opacity. Default: 100%.
+- **Corner radius:** 0–64 logical pixels, with smooth antialiased edges. 0 restores square corners. Default: 24 px. The radius stays consistent when resizing the desktop widget.
+- **Overall opacity**, under **Size & placement**, still fades the entire widget—paper and ink together—and is independent of the paper-only setting.
+
+Both controls apply to Madani and Tajweed page presentation. In **Transparent text** mode they style the optional **Text backdrop** when enabled; no backing is painted when it is off. Original opaque artwork inside a source PNG is still part of that image, not the configurable paper layer. Changes apply live, including theme previews.
+
 Remove:
 
 ```sh

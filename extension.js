@@ -45,6 +45,8 @@ export default class QuranDesktopExtension extends Extension {
                         showPageInfo: this._settings.get_boolean('show-page-info'),
                         margin: this._settings.get_int('page-margin'),
                         opacity: this._settings.get_int('opacity') / 100,
+                        backgroundOpacity: this._settings.get_int('background-opacity') / 100,
+                        cornerRadius: this._settings.get_int('corner-radius'),
                         status: this._imageStatus,
                     });
                 } else {
@@ -53,6 +55,8 @@ export default class QuranDesktopExtension extends Extension {
                         fontName: this._settings.get_string('font-name'),
                         textColor: this._settings.get_string('text-color'),
                         showBackdrop: this._settings.get_boolean('show-backdrop'),
+                        backgroundOpacity: this._settings.get_int('background-opacity') / 100,
+                        cornerRadius: this._settings.get_int('corner-radius'),
                     });
                 }
             } finally { cr.$dispose(); }

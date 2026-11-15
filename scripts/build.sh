@@ -18,6 +18,7 @@ files=(
     extension.js
     model.js
     renderer.js
+    drawing.js
     madaniRenderer.js
     pageModel.js
     pageStore.js

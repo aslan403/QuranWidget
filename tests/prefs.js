@@ -27,7 +27,23 @@ function expect(condition, message) {
     print(`PASS: ${message}`);
 }
 const spins = descendants.filter(widget => widget instanceof Gtk.SpinButton);
-expect(spins.length === 9, 'native preferences contain all nine numeric controls');
+expect(spins.length === 11, 'native preferences contain all eleven numeric controls');
+const backgroundOpacity = spins.find(widget => widget.name === 'background-opacity');
+const cornerRadius = spins.find(widget => widget.name === 'corner-radius');
+expect(backgroundOpacity.adjustment.lower === 0 && backgroundOpacity.adjustment.upper === 100,
+    'background opacity exposes the full 0–100% range');
+backgroundOpacity.set_value(35);
+expect(settings.get_int('background-opacity') === 35, 'background opacity control writes GSettings');
+settings.set_int('background-opacity', 80);
+expect(backgroundOpacity.value === 80, 'background opacity updates from GSettings');
+expect(cornerRadius.adjustment.lower === 0 && cornerRadius.adjustment.upper === 64,
+    'corner radius exposes square through rounded edges');
+cornerRadius.set_value(36);
+expect(settings.get_int('corner-radius') === 36, 'corner radius control writes GSettings');
+settings.set_int('corner-radius', 24);
+expect(cornerRadius.value === 24, 'corner radius updates from GSettings');
+settings.set_int('background-opacity', 40);
+settings.set_int('corner-radius', 36);
 const pageSpin = spins.find(widget => widget.adjustment.upper === 604);
 pageSpin.set_value(42);
 expect(settings.get_int('page') === 42, 'native page control writes GSettings');
@@ -51,7 +67,7 @@ const darkButton = descendants.find(widget => widget instanceof Gtk.ToggleButton
 expect(Boolean(darkButton), 'native page theme preview cards exist');
 darkButton.active = true;
 expect(settings.get_string('page-theme') === 'dark', 'Dark preview card saves page appearance');
-const nightBackground = spins.find(widget => widget.adjustment.upper === 64);
+const nightBackground = spins.find(widget => widget.name === 'night-background-brightness');
 nightBackground.set_value(32);
 expect(settings.get_int('night-background-brightness') === 32, 'night background control saves independent brightness');
 settings.set_string('page-theme', 'automatic');
@@ -68,5 +84,15 @@ const [captured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/She
     'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, screenshot]),
     null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack();
 expect(captured, `native preferences screenshot: ${screenshot}`);
+const desktop = descendants.find(widget => widget instanceof Adw.PreferencesPage && widget.title === 'Desktop');
+window.set_visible_page(desktop);
+await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+    resolve(); return GLib.SOURCE_REMOVE;
+}));
+const styleScreenshot = GLib.getenv('QURAN_TEST_ROOT') + '/surface-style-preferences.png';
+const [styleCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
+    'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, styleScreenshot]),
+    null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack();
+expect(styleCaptured, `background and corner controls screenshot: ${styleScreenshot}`);
 window.destroy();
 print('All native preferences checks passed.');

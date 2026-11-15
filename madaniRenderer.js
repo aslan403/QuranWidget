@@ -3,6 +3,7 @@ import Pango from 'gi://Pango';
 import PangoCairo from 'gi://PangoCairo';
 import {arabicNumber, isArabicText} from './model.js';
 import {MADANI_WIDTH, MADANI_HEIGHT, fitPageImage, resolvePageTheme} from './pageModel.js';
+import {roundedRectangle} from './drawing.js';
 
 function label(cr, text, x, y, width, size, color, alignment = Pango.Alignment.CENTER) {
     const layout = PangoCairo.create_layout(cr);
@@ -21,18 +22,23 @@ function label(cr, text, x, y, width, size, color, alignment = Pango.Alignment.C
 
 export function drawMadaniPage(cr, width, height, content, asset, options = {}) {
     const palette = resolvePageTheme(options.theme ?? 'light', options);
+    const backgroundAlpha = Math.max(0, Math.min(1, options.backgroundOpacity ?? 1));
     const margin = Math.max(12, Math.min(56, options.margin ?? 24));
     cr.save();
-    cr.scale(width / MADANI_WIDTH, height / MADANI_HEIGHT);
-    // Composite the whole paper and ink together, so global opacity is uniform.
     cr.pushGroup();
+    cr.save();
+    // Clip once in output pixels: smooth corners stay consistent as size changes.
+    roundedRectangle(cr, 0, 0, width, height, options.cornerRadius ?? 24);
+    cr.clip();
+    cr.scale(width / MADANI_WIDTH, height / MADANI_HEIGHT);
+    // Paper opacity is independent; overall opacity composites paper and ink.
     if (palette.gradient) {
         const gradient = new Cairo.LinearGradient(0, 0, MADANI_WIDTH, 0);
         for (const [offset, rgb] of [[0,[220,218,213]], [.18,[253,253,244]], [.48,[255,255,255]], [1,[253,251,239]]])
-            gradient.addColorStopRGB(offset, ...rgb.map(value => value / 255));
+            gradient.addColorStopRGBA(offset, ...rgb.map(value => value / 255), backgroundAlpha);
         cr.setSource(gradient);
     } else {
-        cr.setSourceRGB(...palette.background);
+        cr.setSourceRGBA(...palette.background, backgroundAlpha);
     }
     cr.rectangle(0, 0, MADANI_WIDTH, MADANI_HEIGHT);
     cr.fill();
@@ -64,6 +70,7 @@ export function drawMadaniPage(cr, width, height, content, asset, options = {}) 
     }
     if (showInfo)
         label(cr, arabicNumber(content.page), margin, 912, MADANI_WIDTH - 2 * margin, 23, palette.ink);
+    cr.restore();
     cr.popGroupToSource();
     cr.paintWithAlpha(Math.max(0.2, Math.min(1, options.opacity ?? 1)));
     cr.restore();

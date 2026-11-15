@@ -1,6 +1,7 @@
 import Pango from 'gi://Pango';
 import PangoCairo from 'gi://PangoCairo';
 import {arabicNumber, isArabicText, DESIGN_WIDTH, DESIGN_HEIGHT} from './model.js';
+import {roundedRectangle} from './drawing.js';
 
 function makeLayout(cr, text, size, fontName, width, centered = false) {
     const layout = PangoCairo.create_layout(cr);
@@ -68,8 +69,9 @@ export function drawPage(cr, width, height, content, options = {}) {
     cr.save();
     cr.scale(width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
     if (options.showBackdrop) {
-        cr.setSourceRGBA(0.025, 0.035, 0.04, 0.76 * alpha);
-        cr.rectangle(20, 15, 520, 770);
+        const backgroundAlpha = Math.max(0, Math.min(1, options.backgroundOpacity ?? 1));
+        cr.setSourceRGBA(0.025, 0.035, 0.04, alpha * backgroundAlpha);
+        roundedRectangle(cr, 20, 15, 520, 770, (options.cornerRadius ?? 24) * DESIGN_HEIGHT / height);
         cr.fill();
     }
     const label = (text, x, y, size, strength = 1, family = font, w = 448) => {
