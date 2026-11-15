@@ -1,0 +1,12 @@
+{
+  "name": "quran-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:render": "gjs -m tests/render.js && gjs -m tests/all-pages.js",
+    "test:shell": "bash tests/run-shell.sh",
+    "build": "bash scripts/build.sh"
+  }
+}

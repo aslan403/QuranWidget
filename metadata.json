@@ -1,0 +1,8 @@
+{
+  "uuid": "quran-desktop@local",
+  "name": "Quran Desktop",
+  "description": "A quiet, transparent Quran reader for your desktop. Page references use reflowed Arabic text, not scanned Mushaf images.",
+  "shell-version": ["46"],
+  "settings-schema": "org.gnome.shell.extensions.quran-desktop",
+  "version": 1
+}

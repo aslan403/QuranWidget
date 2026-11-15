@@ -1,0 +1,74 @@
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+
+function call(iface, method, params = null) {
+    return Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell', iface,
+        method, params, null, Gio.DBusCallFlags.NONE, 5000, null).deep_unpack();
+}
+function evaluate(code) {
+    const [ok, result] = call('org.gnome.Shell', 'Eval', new GLib.Variant('(s)', [code]));
+    if (!ok) throw new Error(`Eval failed: ${result}`);
+    return JSON.parse(result);
+}
+function expect(condition, message) {
+    if (!condition) throw new Error(message);
+    print(`PASS: ${message}`);
+}
+function waitFor(fn, label) {
+    let last;
+    for (let i = 0; i < 100; i++) {
+        try { if (fn()) return; } catch (error) { last = error; }
+        GLib.usleep(200000);
+    }
+    throw new Error(`Timeout: ${label}: ${last}`);
+}
+const uuid = new GLib.Variant('(s)', ['quran-desktop@local']);
+const info = () => call('org.gnome.Shell.Extensions', 'GetExtensionInfo', uuid)[0];
+const actor = `Main.layoutManager._backgroundGroup.get_children().find(a => a.name === 'quran-desktop-page')`;
+const ext = `Main.extensionManager.lookup('quran-desktop@local').stateObj`;
+waitFor(() => info().state.deep_unpack() === 1, 'extension enabled');
+waitFor(() => evaluate('true'), 'test driver');
+evaluate('Main.overview.hide(); true');
+waitFor(() => evaluate(`Boolean(${actor}?.visible)`), 'page visible');
+expect(evaluate(`${actor}.reactive`) === false, 'page is click-through in desktop background');
+expect(evaluate(`${ext}._content.sections.length`) > 0, 'real offline Quran content loaded');
+expect(evaluate(`${ext}._content.page`) === 1, 'reading starts at saved page');
+const initial = evaluate(`({x:${actor}.x,y:${actor}.y})`);
+evaluate(`${ext}._next.activate(null); true`);
+waitFor(() => evaluate(`${ext}._content.page`) === 2, 'next page');
+expect(true, 'panel Next page action updates content');
+evaluate(`${ext}._previous.activate(null); true`);
+waitFor(() => evaluate(`${ext}._content.page`) === 1, 'previous page');
+expect(true, 'panel Previous page action updates content');
+evaluate(`${ext}._entry.set_text('604'); ${ext}._entry.clutter_text.emit('activate'); true`);
+waitFor(() => evaluate(`${ext}._content.page`) === 604, 'jump to page');
+expect(evaluate(`${ext}._next.sensitive`) === false, 'last page disables Next');
+evaluate(`${ext}._entry.set_text('999'); ${ext}._entry.clutter_text.emit('activate'); true`);
+expect(evaluate(`${ext}._settings.get_int('page')`) === 604, 'invalid page rejected');
+evaluate(`${ext}._settings.set_int('page', 2); ${ext}._settings.set_int('height', 650); ${ext}._settings.set_int('position-x', 0); ${ext}._settings.set_int('position-y', 0); true`);
+waitFor(() => evaluate(`${actor}.height`) === 650, 'live geometry update');
+expect(evaluate(`${actor}.x`) < initial.x, 'placement changes actual desktop actor');
+evaluate('Main.overview.show(); true');
+waitFor(() => !evaluate(`${actor}.visible`), 'hide in overview');
+expect(true, 'page hides in overview');
+evaluate('Main.overview.hide(); true');
+waitFor(() => evaluate(`${actor}.visible`), 'show desktop');
+// Render all pages inside Shell to catch native paint/shaping failures.
+evaluate(`${ext}._settings.set_int('page', 1); ${ext}._settings.set_int('height', 760); ${ext}._settings.set_int('position-x', 70); ${ext}._settings.set_int('position-y', 50); true`);
+GLib.usleep(1500000);
+const screenshot = GLib.getenv('QURAN_TEST_ROOT') + '/desktop.png';
+const captured = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
+    'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, screenshot]),
+    null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack()[0];
+expect(captured, `real compositor screenshot: ${screenshot}`);
+call('org.gnome.Shell.Extensions', 'DisableExtension', uuid);
+waitFor(() => info().state.deep_unpack() === 2, 'disable');
+expect(!evaluate(`Boolean(${actor})`), 'disable removes desktop actor');
+expect(evaluate(`Boolean(Main.panel.statusArea['quran-desktop@local'])`) === false, 'disable removes panel control');
+call('org.gnome.Shell.Extensions', 'EnableExtension', uuid);
+waitFor(() => info().state.deep_unpack() === 1 && evaluate(`Boolean(${actor})`), 're-enable');
+expect(evaluate(`Main.layoutManager._backgroundGroup.get_children().filter(a => a.name === 'quran-desktop-page').length`) === 1,
+    're-enable creates exactly one widget');
+GLib.usleep(1000000);
+expect(info().state.deep_unpack() === 1, 'GNOME Shell remains healthy after lifecycle checks');
+print('All isolated GNOME Shell integration checks passed.');

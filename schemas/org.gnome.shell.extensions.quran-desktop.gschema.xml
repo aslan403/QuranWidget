@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.quran-desktop" path="/org/gnome/shell/extensions/quran-desktop/">
+    <key name="page" type="i">
+      <range min="1" max="604"/>
+      <default>1</default>
+      <summary>Reading page</summary>
+      <description>Quran page reference. Text is reflowed, not a scanned Mushaf page.</description>
+    </key>
+    <key name="height" type="i">
+      <range min="320" max="1600"/>
+      <default>760</default>
+      <summary>Widget height in logical pixels</summary>
+    </key>
+    <key name="position-x" type="i">
+      <range min="0" max="100"/>
+      <default>86</default>
+      <summary>Horizontal position percentage</summary>
+    </key>
+    <key name="position-y" type="i">
+      <range min="0" max="100"/>
+      <default>50</default>
+      <summary>Vertical position percentage</summary>
+    </key>
+    <key name="opacity" type="i">
+      <range min="20" max="100"/>
+      <default>100</default>
+      <summary>Widget opacity percentage</summary>
+    </key>
+    <key name="monitor" type="i">
+      <range min="-1" max="15"/>
+      <default>-1</default>
+      <summary>Monitor index</summary>
+      <description>Use -1 for the primary monitor, or a zero-based monitor index.</description>
+    </key>
+    <key name="hide-in-overview" type="b">
+      <default>true</default>
+      <summary>Hide in the Activities overview</summary>
+    </key>
+    <key name="font-name" type="s">
+      <default>'Noto Naskh Arabic'</default>
+      <summary>Arabic font family</summary>
+    </key>
+    <key name="text-color" type="s">
+      <default>'#f4f1e9'</default>
+      <summary>Text color</summary>
+      <description>A hexadecimal RGB color in #RRGGBB format.</description>
+    </key>
+    <key name="show-backdrop" type="b">
+      <default>false</default>
+      <summary>Show a subtle backdrop behind the text</summary>
+    </key>
+  </schema>
+</schemalist>
