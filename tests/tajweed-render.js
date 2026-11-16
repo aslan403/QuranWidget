@@ -5,10 +5,11 @@ import GdkPixbuf from 'gi://GdkPixbuf';
 import {MadaniPageStore} from '../pageStore.js';
 import {drawMadaniPage} from '../madaniRenderer.js';
 import {pageContent} from '../model.js';
+import {resolvePageTheme} from '../pageModel.js';
 const store = new MadaniPageStore(null, 'tajweed');
 const [, bytes] = Gio.File.new_for_path('data/quran.json').load_contents(null);
 const data = JSON.parse(new TextDecoder().decode(bytes));
-const asset = await store.load(3, new Gio.Cancellable());
+const asset = await store.load(3, new Gio.Cancellable(), resolvePageTheme('dark'));
 if (asset.edition !== 'tajweed' || asset.color !== true || asset.surface.getWidth() !== 1340)
     throw new Error('Tajweed must use its own real color PNG, not a Madani mask');
 print('PASS: original مصحف التجويد PNG downloaded, decoded and cache-isolated');

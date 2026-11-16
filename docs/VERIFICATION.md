@@ -4,6 +4,16 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 
 ## Executed checks
 
+### Page-navigation freeze fix
+
+- Reproduced a cold Tajweed conversion blocking the standalone GJS event loop for 157 ms, and reproduced the full Shell suite stalling on its Tajweed-night screenshot with sweeping-phase callback warnings. The normal desktop journal also contained the same callback warnings; the issue was not treated as harmless headless-test flakiness.
+- Moved grayscale-mask generation, Tajweed night pixel conversion, and PNG encoding/writing to an owned, cancellable GJS subprocess. Theme changes now await a prepared asset; paint-time theme access is read-only. Prepared night cache keys include brightness and source-file revision. Cancelling a request or destroying its store stops and reaps the worker without deleting valid source PNGs.
+- `npm run test:render` passed, including the new `test:responsiveness` regression: cold Madani processing had a 21 ms maximum loop gap and cold Tajweed night processing 24 ms in the recorded run. The test enforces a 100 ms maximum gap, checks persistent prepared-cache reuse and independent brightness variants, confirms original bytes are unchanged, and verifies cancellation/destruction leave no running workers.
+- The previously failing full `npm run test:shell` suite passed on two consecutive fresh isolated compositor runs. Its strengthened regression exercises rapid navigation across real Tajweed pages and explicit GC; maximum measured Shell heartbeat gap was 71 ms, below its 200 ms limit. All screenshots, image-style assertions, keyboard/search tests, and native preferences passed, with no JS errors or GC callback warnings in either compositor log.
+- `npm run test:displays` passed again, including rapid Tajweed dark navigation and forced GC with both display actors active, followed by a successful real two-display night screenshot. All existing display reconfiguration and preferences checks still passed.
+- `npm test`: 21 Node tests and 2 Python archive tests passed. Quran source data, original images, page layout, and Tajweed colors remain unchanged.
+- Rebuilt ZIP integrity and native installation passed in a private D-Bus/XDG session. All 23 runtime members, including `imageWorker.js`, matched source and installed bytes; tests, the unsafe driver, and page PNGs were excluded. `navigation-freeze-fixed.png` records both real display copies in Tajweed night mode after rapid navigation and GC.
+
 ### Multi-display update
 
 - `npm test`: 21 Node tests and 2 Python tests passed. New tests cover primary/selected/all monitor selection, empty monitor lists, disconnected-index fallback/reconnection, negative coordinates, and fitting different portrait/landscape work areas.
@@ -11,7 +21,7 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 - Used Mutter DisplayConfig temporary configurations to disable and re-enable the selected logical display, rotate an output to portrait, enable mixed display scales, and change the primary output. Pages refitted automatically; the unavailable selection was preserved rather than overwritten. The test restores its original private layout in a finally block. This exercises real compositor configuration signals, not mocked monitor arrays.
 - Verified original Madani imagery on both displays using a shared decoded asset. Repeated mode changes did not leak actors; disabling destroyed all actors and reenabling restored exactly one per display.
 - Native preferences passed all existing checks plus bidirectional all-display switching and disabling the irrelevant single-monitor selector. The actual Desktop tab and two-display rendering were visually inspected.
-- `npm run test:navigation` and `npm run test:render` passed again after the actor-collection change. No JS errors or sweeping-phase warnings were found in the two-display compositor log. The older full graphics stress-suite timeout below remains a separate baseline issue, not a claimed full-suite pass.
+- `npm run test:navigation` and `npm run test:render` passed again after the actor-collection change. No JS errors or sweeping-phase warnings were found in the two-display compositor log. At that revision, the full graphics stress-suite timeout below remained an open issue; the navigation-freeze update above subsequently resolved it.
 - Evidence: `multi-display.png` and `multi-display-preferences.png`.
 - Strict schema/build and ZIP integrity passed; all 22 runtime members matched source and were installed with the native installer in a private XDG directory, then read back byte-for-byte. The installed `all-monitors` schema default is false, preserving single-display behavior until explicitly enabled.
 
@@ -25,7 +35,7 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 - Search and shortcut-preferences screenshots are `search.png` and `navigation-preferences.png`.
 - Strict build and ZIP integrity passed: all 22 runtime members matched source bytes, with no test driver or page-image cache. The native installer succeeded in a private XDG directory; all installed members were read back and matched the archive. All six installed shortcut schema defaults matched shared runtime/preference metadata. The focused compositor log contained no JS errors or sweeping-phase warnings.
 
-**Known baseline limitation:** the original full `test:shell` image/screenshot stress suite timed out on its Tajweed-night screenshot and logged GJS sweeping-phase callback warnings before navigation/search integration. It still fails at that earlier graphics stage. The independently runnable navigation/search suite passes; this is not a claim that the full legacy Shell suite is green.
+**Resolved baseline issue:** the original full `test:shell` image/screenshot stress suite timed out on its Tajweed-night screenshot and logged GJS sweeping-phase callback warnings before navigation/search integration. The navigation-freeze fix above moved image preparation out of Shell and now passes the full suite, including a rapid-navigation/GC heartbeat regression.
 
 ### Earlier appearance verification
 

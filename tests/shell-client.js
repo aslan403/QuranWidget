@@ -85,11 +85,34 @@ waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.p
 expect(evaluate(`${ext}._asset.color`) === true, 'مصحف التجويد uses original color imagery, never a grayscale mask');
 capture('tajweed-desktop.png');
 evaluate(`${ext}._settings.set_string('page-theme', 'dark'); true`);
+waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && Boolean(${ext}._asset.forTheme(${ext}._pagePalette()))`), 'prepared Tajweed night image');
 capture('tajweed-desktop-dark.png');
 expect(info().state.deep_unpack() === 1, 'color-preserving Tajweed night page renders inside Shell');
 evaluate(`${ext}._settings.set_int('page', 604); true`);
 waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 604`), 'last Tajweed page');
 expect(true, 'Tajweed navigation reaches page 604 without mixing edition caches');
+evaluate(`globalThis.quranFreezeReady=false; import('gi://GLib').then(({default:G}) => {
+    globalThis.quranFreezeGLib=G;
+    const pulse={last:G.get_monotonic_time(),maxGap:0,ticks:0};
+    pulse.id=G.timeout_add(G.PRIORITY_DEFAULT,10,()=>{const now=G.get_monotonic_time(); pulse.maxGap=Math.max(pulse.maxGap,(now-pulse.last)/1000); pulse.last=now; pulse.ticks++; return G.SOURCE_CONTINUE;});
+    globalThis.quranFreezePulse=pulse; globalThis.quranFreezeReady=true;
+}); true`);
+waitFor(() => evaluate('globalThis.quranFreezeReady'), 'Shell navigation heartbeat');
+try {
+    for (const page of [1, 2, 187, 604, 1, 3]) {
+        evaluate(`${ext}._settings.set_int('page', ${page}); true`);
+        GLib.usleep(25000);
+    }
+    waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 3`), 'latest rapid-navigation result');
+    waitFor(() => evaluate(`${ext}._store._workers.size`) === 0, 'obsolete conversion workers reaped');
+    evaluate('imports.system.gc(); true');
+    GLib.usleep(100000);
+    const gap = evaluate('Math.round(globalThis.quranFreezePulse.maxGap)');
+    expect(evaluate('globalThis.quranFreezePulse.ticks') > 5 && gap < 200,
+        `rapid Tajweed night navigation and explicit GC keep Shell responsive (max gap ${gap}ms)`);
+} finally {
+    evaluate('globalThis.quranFreezeGLib.Source.remove(globalThis.quranFreezePulse.id); delete globalThis.quranFreezePulse; delete globalThis.quranFreezeGLib; delete globalThis.quranFreezeReady; true');
+}
 evaluate(`${ext}._settings.set_int('page', 3); ${ext}._settings.set_string('page-theme', 'light'); true`);
 waitFor(() => evaluate(`${ext}._asset?.page`) === 3, 'restore Tajweed page 3');
 evaluate(`${ext}._settings.set_int('background-opacity', 40); ${ext}._settings.set_int('corner-radius', 36); true`);

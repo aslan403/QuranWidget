@@ -26,6 +26,7 @@ files=(
     madaniRenderer.js
     pageModel.js
     pageStore.js
+    imageWorker.js
     scripts/download-pages.py
     prefs.js
     metadata.json

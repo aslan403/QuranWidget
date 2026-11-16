@@ -28,6 +28,7 @@ export default class QuranDesktopExtension extends Extension {
         this._store = new MadaniPageStore(null, this._settings.get_string('mushaf-edition'));
         this._imagePage = 0;
         this._imageEdition = null;
+        this._imageTheme = null;
         this._asset = null;
         this._cancellable = null;
         this._imageStatus = 'Downloading Madani page…';
@@ -40,10 +41,7 @@ export default class QuranDesktopExtension extends Extension {
         this._createMenu();
         this._registerShortcuts();
         this._connect(this._settings, 'changed', () => this._update());
-        this._connect(this._systemSettings, 'changed::color-scheme', () => {
-            this._prepareColorPage();
-            this._queueRepaint();
-        });
+        this._connect(this._systemSettings, 'changed::color-scheme', () => this._update());
         this._connect(Main.layoutManager, 'monitors-changed', () => this._update());
         this._connect(global.display, 'workareas-changed', () => this._update());
         this._connect(Main.overview, 'showing', () => this._syncVisibility());
@@ -194,15 +192,17 @@ export default class QuranDesktopExtension extends Extension {
         }
     }
 
-    _prepareColorPage() {
-        if (!this._asset?.color) return;
-        const theme = resolvePageTheme(this._settings.get_string('page-theme'), {
+    _pagePalette() {
+        return resolvePageTheme(this._settings.get_string('page-theme'), {
             systemDark: this._systemSettings.get_string('color-scheme') === 'prefer-dark',
             textBrightness: this._settings.get_int('night-text-brightness'),
             backgroundBrightness: this._settings.get_int('night-background-brightness'),
         });
-        // Native decoding / disk writes must finish before the compositor paints.
-        this._asset.forTheme(theme);
+    }
+
+    _imageThemeKey(palette) {
+        return this._settings.get_string('mushaf-edition') === 'tajweed' && palette.name === 'dark'
+            ? `${Math.round(palette.ink[0] * 255)}/${Math.round(palette.background[0] * 255)}` : 'original';
     }
 
     async _loadMadaniPage(page) {
@@ -218,16 +218,17 @@ export default class QuranDesktopExtension extends Extension {
         this._cancellable = cancellable;
         this._imagePage = page;
         this._imageEdition = edition;
+        const palette = this._pagePalette();
+        this._imageTheme = this._imageThemeKey(palette);
         this._asset = null;
         this._imageStatus = `Loading ${title}…`;
         this._downloadStatus.label.set_text(`Loading ${title}…`);
         this._queueRepaint();
         const current = () => generation.active && this._generation === generation && this._cancellable === cancellable;
         try {
-            const asset = await this._store.load(page, cancellable);
+            const asset = await this._store.load(page, cancellable, palette);
             if (!current()) return;
             this._asset = asset;
-            this._prepareColorPage();
             this._imageStatus = '';
             this._downloadStatus.label.set_text(`${title} · cached · click to reload`);
             this._queueRepaint();
@@ -249,14 +250,14 @@ export default class QuranDesktopExtension extends Extension {
         this._previous.setSensitive(page > 1);
         this._next.setSensitive(page < 604);
         this._downloadStatus.visible = madani;
-        if (madani && (page !== this._imagePage || edition !== this._imageEdition)) {
+        if (madani && (page !== this._imagePage || edition !== this._imageEdition ||
+            this._imageThemeKey(this._pagePalette()) !== this._imageTheme)) {
             this._loadMadaniPage(page);
         } else if (!madani) {
             this._cancellable?.cancel();
             this._asset = null;
             this._imagePage = 0;
         }
-        this._prepareColorPage();
         const monitors = Main.layoutManager.monitors;
         const indexes = monitorIndexes(monitors, Main.layoutManager.primaryIndex,
             this._settings.get_int('monitor'), this._settings.get_boolean('all-monitors'));

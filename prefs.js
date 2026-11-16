@@ -63,12 +63,6 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         const data = JSON.parse(new TextDecoder().decode(bytes));
         let content = pageContent(data, settings.get_int('page'));
         let asset = null;
-        const preparePreview = () => {
-            if (asset?.color) asset.forTheme(resolvePageTheme('dark', {
-                textBrightness: settings.get_int('night-text-brightness'),
-                backgroundBrightness: settings.get_int('night-background-brightness'),
-            }));
-        };
         const buttons = [];
         const previews = [];
         for (const [theme, title] of [['light','Light'], ['sepia','Sepia'], ['dark','Dark']]) {
@@ -103,10 +97,13 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
             for (const preview of previews) preview.queue_draw();
             if (settings.get_string('page-layout') !== 'madani') return;
             store = new MadaniPageStore(null, settings.get_string('mushaf-edition'));
-            store.load(content.page, request).then(result => {
+            const palette = resolvePageTheme('dark', {
+                textBrightness: settings.get_int('night-text-brightness'),
+                backgroundBrightness: settings.get_int('night-background-brightness'),
+            });
+            store.load(content.page, request, palette).then(result => {
                 if (closed || request !== cancellable) return;
                 asset = result;
-                preparePreview();
                 for (const preview of previews) preview.queue_draw();
             }).catch(error => {
                 if (!closed && request === cancellable && !request.is_cancelled())
@@ -116,6 +113,8 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         connect('changed::mushaf-edition', loadPreview);
         connect('changed::page', loadPreview);
         connect('changed::page-layout', loadPreview);
+        connect('changed::night-text-brightness', loadPreview);
+        connect('changed::night-background-brightness', loadPreview);
         loadPreview();
         const automatic = new Adw.SwitchRow({title: 'Match desktop theme',
             subtitle: 'Follow GNOME’s light / dark appearance automatically'});
@@ -140,7 +139,6 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
             old.sensitive = theme === 'light' || theme === 'automatic';
             appearance.sensitive = previewGroup.sensitive = settings.get_string('page-layout') === 'madani';
             edition.sensitive = settings.get_string('page-layout') === 'madani';
-            preparePreview();
             for (const preview of previews) preview.queue_draw();
         };
         connect('changed', sync);

@@ -118,6 +118,23 @@ const [captured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/She
     'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false,false,screenshot]),
     null, Gio.DBusCallFlags.NONE,10000,null).deep_unpack();
 expect(captured, `two-display compositor screenshot: ${screenshot}`);
+settings("set_string('mushaf-edition', 'tajweed')");
+settings("set_string('page-theme', 'dark')");
+waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed'`), 'shared asynchronous Tajweed night image');
+for (const page of [1, 187, 604, 3]) {
+    settings(`set_int('page', ${page})`);
+    GLib.usleep(25000);
+}
+waitFor(() => evaluate(`${ext}._asset?.edition === 'tajweed' && ${ext}._asset?.page === 3 && ${ext}._store._workers.size === 0`), 'latest two-display night navigation');
+evaluate('imports.system.gc(); true');
+expect(count() === 2 && checkBounds() && evaluate(`Boolean(${ext}._asset.forTheme(${ext}._pagePalette()))`),
+    'rapid Tajweed dark navigation and GC keep both display copies healthy');
+GLib.usleep(300000);
+const nightScreenshot = GLib.getenv('QURAN_TEST_ROOT') + '/multi-display-night.png';
+const [nightCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell/Screenshot',
+    'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false,false,nightScreenshot]),
+    null, Gio.DBusCallFlags.NONE,10000,null).deep_unpack();
+expect(nightCaptured, `two-display Tajweed night screenshot after navigation and GC: ${nightScreenshot}`);
 for (let i = 0; i < 3; i++) {
     settings("set_boolean('all-monitors', false)");
     settings("set_boolean('all-monitors', true)");

@@ -149,6 +149,7 @@ No npm dependencies or transpilation are needed.
 npm test
 python3 tests/download-pages-test.py
 npm run test:render
+npm run test:responsiveness
 npm run test:navigation
 npm run test:displays
 bash scripts/build.sh
@@ -157,12 +158,15 @@ bash tests/run-shell.sh
 
 Native image tests require their pages to be cached or an internet connection. Shell tests seed a few images from your existing cache into **private XDG directories**, use a separate D-Bus session, and start an isolated headless compositor. They never enable the extension in your normal desktop. Their unsafe-mode helper is test-only and never packaged.
 
-`test:navigation` exercises real virtual-keyboard shortcuts, search, lifecycle cleanup, and native preferences independently of the legacy image/screenshot stress checks. The full `test:shell` suite currently encounters a pre-existing Tajweed-night screenshot timeout with GJS GC warnings; see the verification record rather than treating the focused suite as a full-suite pass.
+`test:navigation` exercises real virtual-keyboard shortcuts, search, lifecycle cleanup, and native preferences independently of image/screenshot stress checks. The full `test:shell` suite also covers rapid Tajweed-night navigation, an event-loop heartbeat, and explicit garbage collection. The earlier Tajweed-night screenshot/GC stall is fixed and the full suite passes; see the before/after verification record.
+
+Image pixel conversion and PNG encoding run in a cancellable background GJS process, not inside Shell rendering or settings callbacks. Cold pages may briefly show a loading message, but input and animations continue. Obsolete conversions are terminated and reaped when navigating away or disabling the extension. Prepared night images are cached by brightness and source-file revision, and original source PNGs are left unchanged. `test:responsiveness` measures event-loop gaps with cold caches and verifies cancellation, cache reuse, and source preservation; it is also included in `test:render`.
 
 `test:displays` starts two virtual displays in the private compositor. It exercises primary/selected/all modes, temporary display disable/re-enable, primary changes, portrait rotation, mixed scaling, actor cleanup, shared image rendering, and native preferences. Display configurations and fractional-scaling settings are changed only in this isolated session, never on the normal desktop.
 
 - `extension.js`: background actor, panel controls, async page loading, visibility, and lifecycle.
 - `pageStore.js`: HTTPS image download, repairable disk cache, cancellation, and native PNG decoding.
+- `imageWorker.js`: isolated pixel conversion and atomic prepared-image writes; never performs UI work.
 - `pageModel.js`: theme colors, image fitting, and antialiased ink-mask conversion.
 - `madaniRenderer.js`: fixed-layout image renderer and page furniture.
 - `model.js` / `renderer.js`: original offline text model and reflowed text rendering.
