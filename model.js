@@ -2,6 +2,13 @@ export const PAGE_COUNT = 604;
 export const DESIGN_WIDTH = 560;
 export const DESIGN_HEIGHT = 800;
 
+export function monitorIndexes(monitors, primaryIndex, requested, all) {
+    if (!monitors.length) return [];
+    if (all) return monitors.map((_monitor, index) => index);
+    const primary = primaryIndex >= 0 && primaryIndex < monitors.length ? primaryIndex : 0;
+    return [requested >= 0 && requested < monitors.length ? requested : primary];
+}
+
 export function widgetBounds(area, requestedHeight, positionX, positionY, aspectRatio = 0.7) {
     const height = Math.max(1, Math.min(requestedHeight, area.height, area.width / aspectRatio));
     const width = height * aspectRatio;

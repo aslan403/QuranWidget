@@ -39,6 +39,11 @@
       <summary>Smooth corner radius in logical pixels</summary>
       <description>0 gives square corners. Applies to Mushaf pages and to the optional transparent-text backdrop.</description>
     </key>
+    <key name="all-monitors" type="b">
+      <default>false</default>
+      <summary>Show the Quran page on every connected display</summary>
+      <description>Use one click-through page per logical display, sharing the same reading position and appearance. When off, use the saved monitor selection.</description>
+    </key>
     <key name="monitor" type="i">
       <range min="-1" max="15"/>
       <default>-1</default>

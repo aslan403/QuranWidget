@@ -7,7 +7,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {clampPage, pageContent, widgetBounds} from './model.js';
+import {clampPage, monitorIndexes, pageContent, widgetBounds} from './model.js';
 import {drawPage} from './renderer.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {MadaniPageStore} from './pageStore.js';
@@ -35,14 +35,32 @@ export default class QuranDesktopExtension extends Extension {
         if (!ok) throw new Error('Could not read bundled Quran data');
         this._data = JSON.parse(new TextDecoder().decode(bytes));
         this._content = pageContent(this._data, this._settings.get_int('page'));
-        this._area = new St.DrawingArea({
+        this._areas = [];
+        this._area = null;
+        this._createMenu();
+        this._registerShortcuts();
+        this._connect(this._settings, 'changed', () => this._update());
+        this._connect(this._systemSettings, 'changed::color-scheme', () => {
+            this._prepareColorPage();
+            this._queueRepaint();
+        });
+        this._connect(Main.layoutManager, 'monitors-changed', () => this._update());
+        this._connect(global.display, 'workareas-changed', () => this._update());
+        this._connect(Main.overview, 'showing', () => this._syncVisibility());
+        this._connect(Main.overview, 'hidden', () => this._syncVisibility());
+        this._connect(Main.sessionMode, 'updated', () => this._syncVisibility());
+        this._update();
+    }
+
+    _createArea() {
+        const area = new St.DrawingArea({
             name: 'quran-desktop-page', reactive: false, can_focus: false,
             accessible_name: 'Quran desktop page',
         });
-        this._area.connect('repaint', () => {
-            const cr = this._area.get_context();
+        area.connect('repaint', () => {
+            const cr = area.get_context();
             try {
-                const [width, height] = this._area.get_surface_size();
+                const [width, height] = area.get_surface_size();
                 if (this._settings.get_string('page-layout') === 'madani') {
                     drawMadaniPage(cr, width, height, this._content, this._asset, {
                         theme: this._settings.get_string('page-theme'),
@@ -69,20 +87,12 @@ export default class QuranDesktopExtension extends Extension {
                 }
             } finally { cr.$dispose(); }
         });
-        Main.layoutManager._backgroundGroup.add_child(this._area);
-        this._createMenu();
-        this._registerShortcuts();
-        this._connect(this._settings, 'changed', () => this._update());
-        this._connect(this._systemSettings, 'changed::color-scheme', () => {
-            this._prepareColorPage();
-            this._area.queue_repaint();
-        });
-        this._connect(Main.layoutManager, 'monitors-changed', () => this._update());
-        this._connect(global.display, 'workareas-changed', () => this._update());
-        this._connect(Main.overview, 'showing', () => this._syncVisibility());
-        this._connect(Main.overview, 'hidden', () => this._syncVisibility());
-        this._connect(Main.sessionMode, 'updated', () => this._syncVisibility());
-        this._update();
+        Main.layoutManager._backgroundGroup.add_child(area);
+        return area;
+    }
+
+    _queueRepaint() {
+        for (const area of this._areas) area.queue_repaint();
     }
 
     _connect(object, signal, callback) {
@@ -211,7 +221,7 @@ export default class QuranDesktopExtension extends Extension {
         this._asset = null;
         this._imageStatus = `Loading ${title}…`;
         this._downloadStatus.label.set_text(`Loading ${title}…`);
-        this._area.queue_repaint();
+        this._queueRepaint();
         const current = () => generation.active && this._generation === generation && this._cancellable === cancellable;
         try {
             const asset = await this._store.load(page, cancellable);
@@ -220,12 +230,12 @@ export default class QuranDesktopExtension extends Extension {
             this._prepareColorPage();
             this._imageStatus = '';
             this._downloadStatus.label.set_text(`${title} · cached · click to reload`);
-            this._area.queue_repaint();
+            this._queueRepaint();
         } catch (error) {
             if (!current() || cancellable.is_cancelled()) return;
             this._imageStatus = 'Page image unavailable';
             this._downloadStatus.label.set_text('Download failed · click to retry');
-            this._area.queue_repaint();
+            this._queueRepaint();
             console.warn(`[Quran Desktop] Could not load page ${page}: ${error.message}`);
         }
     }
@@ -248,22 +258,28 @@ export default class QuranDesktopExtension extends Extension {
         }
         this._prepareColorPage();
         const monitors = Main.layoutManager.monitors;
-        if (monitors.length) {
-            const requested = this._settings.get_int('monitor');
-            const index = requested >= 0 && requested < monitors.length ? requested : Math.max(0, Main.layoutManager.primaryIndex);
+        const indexes = monitorIndexes(monitors, Main.layoutManager.primaryIndex,
+            this._settings.get_int('monitor'), this._settings.get_boolean('all-monitors'));
+        while (this._areas.length > indexes.length) this._areas.pop().destroy();
+        while (this._areas.length < indexes.length) this._areas.push(this._createArea());
+        this._area = this._areas[0] ?? null;
+        indexes.forEach((index, slot) => {
+            const area = this._areas[slot];
+            area._quranMonitorIndex = index;
             const bounds = widgetBounds(Main.layoutManager.getWorkAreaForMonitor(index),
                 this._settings.get_int('height'), this._settings.get_int('position-x'),
                 this._settings.get_int('position-y'), madani ? MADANI_WIDTH / MADANI_HEIGHT : 0.7);
-            this._area.set_position(bounds.x, bounds.y);
-            this._area.set_size(bounds.width, bounds.height);
-            this._area.queue_repaint();
-        }
+            area.set_position(bounds.x, bounds.y);
+            area.set_size(bounds.width, bounds.height);
+            area.queue_repaint();
+        });
         this._syncVisibility();
     }
 
     _syncVisibility() {
-        this._area.visible = Main.layoutManager.monitors.length > 0 && !Main.sessionMode.isLocked &&
+        const visible = Main.layoutManager.monitors.length > 0 && !Main.sessionMode.isLocked &&
             !(Main.overview.visible && this._settings.get_boolean('hide-in-overview'));
+        for (const area of this._areas) area.visible = visible;
     }
 
     disable() {
@@ -277,7 +293,8 @@ export default class QuranDesktopExtension extends Extension {
         this._store?.destroy();
         for (const [object, id] of this._signals ?? []) object.disconnect(id);
         this._signals = [];
-        this._area?.destroy();
+        for (const area of this._areas ?? []) area.destroy();
+        this._areas = [];
         this._indicator?.destroy();
         this._area = this._indicator = this._panelLabel = this._title = null;
         this._previous = this._next = this._entry = this._downloadStatus = null;

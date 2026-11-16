@@ -148,6 +148,16 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
 
         const widget = new Adw.PreferencesPage({title: 'Desktop', icon_name: 'preferences-desktop-display-symbolic'});
         window.add(widget);
+        const displays = new Adw.PreferencesGroup({title: 'Displays',
+            description: 'Use the primary display, choose one display, or show a copy on every connected display. All copies share your reading position and appearance, fitted to each display separately.'});
+        widget.add(displays);
+        this._addSwitch(displays, settings, 'all-monitors', 'Show on all displays',
+            'Automatically add or remove pages when displays are connected or disconnected');
+        const monitor = this._addSpin(displays, settings, 'monitor', 'Monitor',
+            '−1 primary display · 0–15 display index · unavailable display falls back to primary', -1, 15);
+        const syncMonitor = () => {monitor.sensitive = !settings.get_boolean('all-monitors');};
+        connect('changed::all-monitors', syncMonitor);
+        syncMonitor();
         const surfaceStyle = new Adw.PreferencesGroup({title: 'Background &amp; corners',
             description: 'Adjust the paper without fading the Quran text. Also applies to the optional transparent-text backdrop.'});
         widget.add(surfaceStyle);
@@ -161,7 +171,7 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         this._addSpin(placement, settings, 'opacity', 'Overall opacity', 'Fades both Quran ink and paper · 20–100%', 20, 100);
         this._addSpin(placement, settings, 'position-x', 'Horizontal position', '0% left · 100% right', 0, 100);
         this._addSpin(placement, settings, 'position-y', 'Vertical position', '0% top · 100% bottom', 0, 100);
-        this._addSpin(placement, settings, 'monitor', 'Monitor', '−1 primary monitor · 0–15 monitor index', -1, 15);
+
         this._addSwitch(placement, settings, 'hide-in-overview', 'Hide in overview', 'Hide the page while Activities is open');
         const transparent = new Adw.PreferencesGroup({title: 'Transparent text only',
             description: 'These controls apply to the reflowed Zclock-style layout, not to the fixed Madani images.'});

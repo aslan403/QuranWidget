@@ -28,6 +28,13 @@ function expect(condition, message) {
 }
 const spins = descendants.filter(widget => widget instanceof Gtk.SpinButton);
 expect(spins.length === 11, 'native preferences contain all eleven numeric controls');
+const allDisplays = descendants.find(widget => widget instanceof Adw.SwitchRow && widget.title === 'Show on all displays');
+const monitorRow = descendants.find(widget => widget instanceof Adw.ActionRow && widget.title === 'Monitor');
+expect(Boolean(allDisplays && monitorRow), 'native preferences expose all-display mode and single-monitor selection');
+allDisplays.active = true;
+expect(settings.get_boolean('all-monitors') && !monitorRow.sensitive, 'all-display switch saves settings and disables irrelevant monitor selection');
+settings.set_boolean('all-monitors', false);
+expect(!allDisplays.active && monitorRow.sensitive, 'single-display selection returns when all-display mode is disabled');
 const backgroundOpacity = spins.find(widget => widget.name === 'background-opacity');
 const cornerRadius = spins.find(widget => widget.name === 'corner-radius');
 expect(backgroundOpacity.adjustment.lower === 0 && backgroundOpacity.adjustment.upper === 100,

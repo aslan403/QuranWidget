@@ -110,7 +110,17 @@ Open **Reading & appearance…** from the top-bar menu, or run:
 gnome-extensions prefs quran-desktop@local
 ```
 
-The **Reading** tab has page selection, layout, theme preview cards, and page configuration. The **Desktop** tab contains placement, transparency, text-only styling, and source credits. The **Navigation** tab contains shortcut editing and offline search help. The desktop itself never consumes pointer input.
+The **Reading** tab has page selection, layout, theme preview cards, and page configuration. The **Desktop** tab contains display selection, placement, transparency, text-only styling, and source credits. The **Navigation** tab contains shortcut editing and offline search help. The desktop itself never consumes pointer input.
+
+### Multiple displays
+
+Open **Desktop → Displays**:
+
+- Turn on **Show on all displays** to put a separate click-through Quran page on every connected logical display.
+- Leave it off to show the page on one display. Set **Monitor** to **−1** to follow the primary display, or use a zero-based display index (**0**, **1**, …).
+- If the selected display is unavailable, the page falls back to the primary display without changing the saved selection. Adding/removing displays or changing the primary display updates the page placement automatically.
+
+Copies share the same page, Mushaf edition, appearance, height, and relative position. Each copy fits its own work area, including portrait displays and different scaling factors; image downloads and decoded source assets are shared rather than duplicated. Independent per-display reading positions or appearance are not provided. Existing single-display selections are preserved; new installations default to the primary display. Mirrored physical outputs share one logical desktop, so the extension creates one actor for that desktop rather than drawing overlapping copies.
 
 ### Background transparency and rounded corners
 
@@ -140,6 +150,7 @@ npm test
 python3 tests/download-pages-test.py
 npm run test:render
 npm run test:navigation
+npm run test:displays
 bash scripts/build.sh
 bash tests/run-shell.sh
 ```
@@ -147,6 +158,8 @@ bash tests/run-shell.sh
 Native image tests require their pages to be cached or an internet connection. Shell tests seed a few images from your existing cache into **private XDG directories**, use a separate D-Bus session, and start an isolated headless compositor. They never enable the extension in your normal desktop. Their unsafe-mode helper is test-only and never packaged.
 
 `test:navigation` exercises real virtual-keyboard shortcuts, search, lifecycle cleanup, and native preferences independently of the legacy image/screenshot stress checks. The full `test:shell` suite currently encounters a pre-existing Tajweed-night screenshot timeout with GJS GC warnings; see the verification record rather than treating the focused suite as a full-suite pass.
+
+`test:displays` starts two virtual displays in the private compositor. It exercises primary/selected/all modes, temporary display disable/re-enable, primary changes, portrait rotation, mixed scaling, actor cleanup, shared image rendering, and native preferences. Display configurations and fractional-scaling settings are changed only in this isolated session, never on the normal desktop.
 
 - `extension.js`: background actor, panel controls, async page loading, visibility, and lifecycle.
 - `pageStore.js`: HTTPS image download, repairable disk cache, cancellation, and native PNG decoding.

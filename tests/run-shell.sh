@@ -43,17 +43,26 @@ gsettings set org.gnome.desktop.notifications show-banners false
 gsettings set org.gnome.desktop.background picture-uri ""
 gsettings set org.gnome.desktop.background picture-uri-dark ""
 gsettings set org.gnome.desktop.background primary-color "#19282c"
-LIBGL_ALWAYS_SOFTWARE=1 gnome-shell --headless --wayland --no-x11 --virtual-monitor 1440x1080 > "$QURAN_TEST_ROOT/shell.log" 2>&1 &
+MONITORS=(--virtual-monitor 1440x1080)
+if [[ "${QURAN_TEST_SCOPE:-all}" == displays ]]; then
+    gsettings set org.gnome.mutter experimental-features "[\"scale-monitor-framebuffer\"]"
+    MONITORS+=(--virtual-monitor 1024x768)
+fi
+LIBGL_ALWAYS_SOFTWARE=1 gnome-shell --headless --wayland --no-x11 "${MONITORS[@]}" > "$QURAN_TEST_ROOT/shell.log" 2>&1 &
 SHELL_PID=$!
 trap "kill $SHELL_PID 2>/dev/null || true" EXIT
 sleep 3
-if [[ "${QURAN_TEST_SCOPE:-all}" == navigation ]]; then
+if [[ "${QURAN_TEST_SCOPE:-all}" == navigation || "${QURAN_TEST_SCOPE:-all}" == displays ]]; then
     gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "Main.overview.hide(); true"
     sleep 0.3
 else
     gjs -m "$PROJECT/tests/shell-client.js"
 fi
-gjs -m "$PROJECT/tests/navigation-search-client.js"
+if [[ "${QURAN_TEST_SCOPE:-all}" == displays ]]; then
+    gjs -m "$PROJECT/tests/multi-monitor-client.js"
+else
+    gjs -m "$PROJECT/tests/navigation-search-client.js"
+fi
 export WAYLAND_DISPLAY=wayland-0
 cd "$PROJECT"
 GI_TYPELIB_PATH="/usr/lib/gnome-shell/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}" gjs -m "$PROJECT/tests/prefs.js"

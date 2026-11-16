@@ -4,6 +4,17 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 
 ## Executed checks
 
+### Multi-display update
+
+- `npm test`: 21 Node tests and 2 Python tests passed. New tests cover primary/selected/all monitor selection, empty monitor lists, disconnected-index fallback/reconnection, negative coordinates, and fitting different portrait/landscape work areas.
+- `npm run test:displays`: passed with two real virtual outputs (1440×1080 and 1024×768) in a private GNOME 46 compositor. Verified one click-through actor per logical display, independent work-area fitting, shared reading position and image store, and visibility on both displays during overview transitions.
+- Used Mutter DisplayConfig temporary configurations to disable and re-enable the selected logical display, rotate an output to portrait, enable mixed display scales, and change the primary output. Pages refitted automatically; the unavailable selection was preserved rather than overwritten. The test restores its original private layout in a finally block. This exercises real compositor configuration signals, not mocked monitor arrays.
+- Verified original Madani imagery on both displays using a shared decoded asset. Repeated mode changes did not leak actors; disabling destroyed all actors and reenabling restored exactly one per display.
+- Native preferences passed all existing checks plus bidirectional all-display switching and disabling the irrelevant single-monitor selector. The actual Desktop tab and two-display rendering were visually inspected.
+- `npm run test:navigation` and `npm run test:render` passed again after the actor-collection change. No JS errors or sweeping-phase warnings were found in the two-display compositor log. The older full graphics stress-suite timeout below remains a separate baseline issue, not a claimed full-suite pass.
+- Evidence: `multi-display.png` and `multi-display-preferences.png`.
+- Strict schema/build and ZIP integrity passed; all 22 runtime members matched source and were installed with the native installer in a private XDG directory, then read back byte-for-byte. The installed `all-monitors` schema default is false, preserving single-display behavior until explicitly enabled.
+
 ### Navigation and offline search update
 
 - `npm test`: 18 Node tests and 2 Python archive tests passed. New search coverage includes stable bounded pagination and exact totals, Arabic surah names and transliteration, ASCII/Arabic/Persian references, unmarked Arabic queries, and preservation of the original marked Quran text.
@@ -32,6 +43,8 @@ Executed on GNOME Shell 46.0 / GJS 1.80.2, with real native GTK4 / Adwaita prefe
 ## Evidence
 
 - `desktop.png`: real compositor rendering of Madani page 187.
+- `multi-display.png`: two real virtual desktop regions showing complete page 3 images from a shared asset.
+- `multi-display-preferences.png`: native Desktop tab with Displays controls and existing opacity/corner controls.
 - `desktop-dark.png`: same page after automatic desktop-theme matching switches it to dark.
 - `preferences.png`: actual native preferences with three original-image theme cards.
 - `tajweed-themes.png`: original Tajweed page 3 in Light, Sepia, and Dark; color markings retained in every theme.
@@ -46,6 +59,6 @@ The private compositor's unsafe-mode companion exists solely for assertions and 
 
 ## Limits
 
-Only GNOME 46, Madani 1405 / Hafs and sampled Tajweed images, and the installed Noto Arabic fonts were exercised. The complete 604-entry Tajweed source tree was enumerated; only pages 1, 2, 3, 187, and 604 were downloaded/verified, not the whole Tajweed collection. Actual Shell tests switch between editions and exercise Tajweed page 604; native preferences assert the exact Arabic selector label and persistence. Real monitor hotplug, interactions with third-party desktop-icon extensions, other GNOME releases, other Mushaf styles, audio, translation, and touch gestures remain outside this implementation/test matrix.
+Only GNOME 46, Madani 1405 / Hafs and sampled Tajweed images, and the installed Noto Arabic fonts were exercised. The complete 604-entry Tajweed source tree was enumerated; only pages 1, 2, 3, 187, and 604 were downloaded/verified, not the whole Tajweed collection. Actual Shell tests switch between editions and exercise Tajweed page 604; native preferences assert the exact Arabic selector label and persistence. Multiple virtual outputs and live logical reconfiguration were exercised, but physical cable/dock hotplug, interactions with third-party desktop-icon extensions, other GNOME releases, other Mushaf styles, audio, translation, and touch gestures remain outside this implementation/test matrix.
 
 These source-data and image checks establish structural completeness and preservation, not independent scholarly certification. See `../data/SOURCE.md` and `../data/MADANI-SOURCE.md`. First use of an uncached Madani image requires internet; the transparent-text layout remains fully bundled/offline.
