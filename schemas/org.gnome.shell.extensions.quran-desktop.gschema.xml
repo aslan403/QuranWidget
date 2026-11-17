@@ -100,6 +100,23 @@
     <key name="page-margin" type="i">
       <range min="12" max="56"/><default>24</default><summary>Madani page side margins</summary>
     </key>
+    <key name="audio-reciter" type="s">
+      <choices><choice value="alafasy"/><choice value="husary"/><choice value="minshawi"/></choices>
+      <default>'alafasy'</default><summary>Audio reciter</summary>
+    </key>
+    <key name="audio-volume" type="i">
+      <range min="0" max="100"/><default>80</default><summary>Recitation volume percentage</summary>
+    </key>
+    <key name="audio-repeat" type="s">
+      <choices><choice value="none"/><choice value="verse"/><choice value="page"/></choices>
+      <default>'none'</default><summary>Repeat current verse or page</summary>
+    </key>
+    <key name="audio-continuous" type="b">
+      <default>true</default><summary>Continue recitation beyond the current page</summary>
+    </key>
+    <key name="audio-follow-page" type="b">
+      <default>true</default><summary>Follow the recited verse automatically</summary>
+    </key>
     <key name="quran-previous-page" type="as">
       <default>['&lt;Control&gt;&lt;Alt&gt;Page_Up']</default>
       <summary>Shortcut for previous page</summary>
@@ -123,6 +140,24 @@
     <key name="quran-search" type="as">
       <default>['&lt;Control&gt;&lt;Alt&gt;f']</default>
       <summary>Shortcut for offline Quran search</summary>
+    </key>
+    <key name="quran-audio-toggle" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;space']</default><summary>Shortcut to play or pause recitation</summary>
+    </key>
+    <key name="quran-audio-stop" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;s']</default><summary>Shortcut to stop recitation</summary>
+    </key>
+    <key name="quran-audio-previous" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;bracketleft']</default><summary>Shortcut for previous recited verse</summary>
+    </key>
+    <key name="quran-audio-next" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;bracketright']</default><summary>Shortcut for next recited verse</summary>
+    </key>
+    <key name="quran-audio-volume-up" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;equal']</default><summary>Shortcut to increase recitation volume</summary>
+    </key>
+    <key name="quran-audio-volume-down" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;minus']</default><summary>Shortcut to decrease recitation volume</summary>
     </key>
   </schema>
 </schemalist>

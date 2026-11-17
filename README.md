@@ -20,7 +20,7 @@ Its native preferences include:
 - **Page information:** surah, juz, and page number.
 - Side margins, overall widget height, opacity, monitor, and placement.
 
-This matches the **page presentation and related appearance settings**, not every feature of the Android app. Madani 1405 / Hafs and the color-coded **مصحف التجويد** edition are supported. Warsh, Qaloon, Naskh alternatives, audio, translations, verse selection, and Android navigation gestures are not implemented.
+This matches the **page presentation and related appearance settings**, not every feature of the Android app. Madani 1405 / Hafs and the color-coded **مصحف التجويد** edition are supported, with verse-by-verse audio and highlighting. Warsh, Qaloon, Naskh alternatives, translations, touch-based verse selection, and Android navigation gestures are not implemented.
 
 ### مصحف التجويد — color-coded Tajweed
 
@@ -60,9 +60,36 @@ Results show original, unchanged Quran text and their page references. Select a 
 
 Customize, disable, or reset shortcuts under **Reading & appearance… → Navigation**. Enter a GTK accelerator such as `<Control><Alt>n` and click **Set**; clear and Set to disable, or use undo to restore the default. The editor rejects bare typing keys and duplicate Quran bindings. Changes apply without restarting Shell. Other applications or system shortcuts can still conflict.
 
+## Audio recitation and verse highlighting
+
+Open the **قرآن** top-bar menu and choose **Play from this page**. The same control becomes **Pause recitation** / **Resume recitation**. Use **Stop recitation**, **Previous verse**, **Next verse**, or enter a reference such as `2:255` / `٢:٢٥٥` in **Play verse**.
+
+**Reading & appearance… → Audio** provides:
+
+- Reciter selection: Mishary Rashid Alafasy, Mahmoud Khalil Al-Husary, or Muhammad Siddiq Al-Minshawi.
+- Volume, repeat the current verse/page, continue past the current page, and automatic page following.
+- One playback process shared by all display copies. Playback never autostarts on enable and stops on lock, disable, manual page changes, or changing reciter/layout/edition.
+
+Global audio shortcuts (customize, disable, or reset under **Audio → Audio keyboard shortcuts**):
+
+| Action | Default |
+| --- | --- |
+| Play / pause / resume | `Ctrl+Alt+Space` |
+| Stop | `Ctrl+Alt+S` |
+| Previous verse | `Ctrl+Alt+[` |
+| Next verse | `Ctrl+Alt+]` |
+| Volume up 5% | `Ctrl+Alt+=` |
+| Volume down 5% | `Ctrl+Alt+-` |
+
+Play starts from the visible page when stopped. Previous/next only act when a verse is selected; they do not autoplay from an idle widget or stop playback at the first/last verse boundary. Play/pause ignores repeats while preparing audio. Volume stays within 0–100% without restarting the player. These shortcuts are active in the normal desktop session, not on the lock screen or in overview/modals. Defaults avoid GNOME's Ctrl+Alt+arrow workspace bindings; custom system shortcuts may still conflict. The editor rejects duplicates across both Audio and Navigation.
+
+Verse highlights follow real decoder playback and completion events, not guessed timers. Printed Madani/Tajweed pages use their own upstream verse-line geometry; Transparent text uses exact UTF-8 verse ranges without modifying Quran text. The community Tajweed source omits one word's bounds in **112:3**: that verse gets a full-text footer highlight instead of invented or knowingly partial image boxes. The Audio tab explains this fallback.
+
+Requested MP3 clips and printed-page geometry download once and cache under `quran-desktop/audio-v1/` and `quran-desktop/verse-bounds-v1/` inside your XDG cache. A persistent audio pipeline preloads the next two clips and joins ready verses without restarting the decoder/output. Highlights change at the actual output-clock boundary, never when a future clip is merely prepared. Original recorded pauses are preserved: no silence is trimmed and verses are never crossfaded or overlapped. Initial playback waits for the small look-ahead buffer; a slow connection can still cause starvation when uncached audio is unavailable. Cached content works offline. Editing repeat/continue policy stops the existing queue so obsolete verses cannot play. Word highlighting and full Android media-session parity are not implemented. Sources, checksums, attribution, and limits: [data/AUDIO-SOURCE.md](data/AUDIO-SOURCE.md).
+
 ## Install / update
 
-Requirements: GNOME Shell **46**, GJS with Soup 3 and GdkPixbuf, `glib-compile-schemas`, `zip`, and an Arabic-capable font for labels / transparent text (recommended: **Noto Naskh Arabic**). Python 3 is only needed for the optional full offline image download.
+Requirements: GNOME Shell **46**, GJS with Soup 3 and GdkPixbuf, `glib-compile-schemas`, `zip`, and an Arabic-capable font for labels / transparent text (recommended: **Noto Naskh Arabic**). Audio additionally needs system Python 3 with PyGObject, GStreamer 1.0 introspection, playbin3, and an MP3 decoder. Python 3 is also used for printed-page highlight preparation and the optional full offline image download. On Ubuntu these audio components are normally provided by `python3-gi`, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-base`, and `gstreamer1.0-plugins-good`.
 
 ```sh
 bash scripts/install.sh
@@ -152,6 +179,8 @@ npm run test:render
 npm run test:responsiveness
 npm run test:navigation
 npm run test:displays
+npm run test:audio
+npm run test:audio-shell
 bash scripts/build.sh
 bash tests/run-shell.sh
 ```
@@ -167,6 +196,9 @@ Image pixel conversion and PNG encoding run in a cancellable background GJS proc
 - `extension.js`: background actor, panel controls, async page loading, visibility, and lifecycle.
 - `pageStore.js`: HTTPS image download, repairable disk cache, cancellation, and native PNG decoding.
 - `imageWorker.js`: isolated pixel conversion and atomic prepared-image writes; never performs UI work.
+- `audioModel.js` / `audioCache.js`: verified reciter paths, source verse sequencing, and on-demand audio cache.
+- `recitationController.js` / `audioWorker.py`: persistent out-of-process GStreamer playback, bounded two-verse look-ahead, and output-clock-synchronized highlight state; `audioWorker.js` provides the legacy command entry point.
+- `coordinateStore.js` / `coordinateWorker.py`: verified edition-specific geometry fetched/prepared outside Shell; no upstream SQL execution or bundled databases.
 - `pageModel.js`: theme colors, image fitting, and antialiased ink-mask conversion.
 - `madaniRenderer.js`: fixed-layout image renderer and page furniture.
 - `model.js` / `renderer.js`: original offline text model and reflowed text rendering.

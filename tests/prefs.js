@@ -27,7 +27,17 @@ function expect(condition, message) {
     print(`PASS: ${message}`);
 }
 const spins = descendants.filter(widget => widget instanceof Gtk.SpinButton);
-expect(spins.length === 11, 'native preferences contain all eleven numeric controls');
+expect(spins.length === 12, 'native preferences contain all twelve numeric controls');
+const volume = spins.find(widget => widget.name === 'audio-volume');
+expect(Boolean(volume) && volume.adjustment.lower === 0 && volume.adjustment.upper === 100,'native recitation volume covers 0–100%');
+volume.set_value(25);
+expect(settings.get_int('audio-volume') === 25,'audio volume saves to GSettings');
+settings.set_int('audio-volume',80);
+const audioReciter = descendants.find(widget => widget instanceof Adw.ComboRow && widget.name === 'audio-reciter');
+expect(Boolean(audioReciter) && audioReciter.model.get_n_items() === 3,'native audio preferences offer three verified reciters');
+audioReciter.selected = 1;
+expect(settings.get_string('audio-reciter') === 'husary','reciter preference saves the selected voice');
+settings.set_string('audio-reciter','alafasy');
 const allDisplays = descendants.find(widget => widget instanceof Adw.SwitchRow && widget.title === 'Show on all displays');
 const monitorRow = descendants.find(widget => widget instanceof Adw.ActionRow && widget.title === 'Monitor');
 expect(Boolean(allDisplays && monitorRow), 'native preferences expose all-display mode and single-monitor selection');
@@ -99,6 +109,21 @@ expect(settings.get_strv('quran-next-page').length === 0, 'native shortcut edito
 shortcutReset.emit('clicked');
 expect(settings.get_strv('quran-next-page')[0] === defaultShortcut && shortcutEntry.text === defaultShortcut,
     'native shortcut reset restores the default and refreshes the editor');
+const audioShortcutEntry = descendants.find(widget => widget instanceof Gtk.Entry && widget.name === 'quran-audio-toggle-entry');
+const audioShortcutApply = descendants.find(widget => widget instanceof Gtk.Button && widget.name === 'quran-audio-toggle-apply');
+const audioShortcutReset = descendants.find(widget => widget instanceof Gtk.Button && widget.name === 'quran-audio-toggle-reset');
+expect(Boolean(audioShortcutEntry && audioShortcutApply && audioShortcutReset),'native Audio tab exposes editable playback shortcuts');
+const defaultAudioShortcut = settings.get_strv('quran-audio-toggle')[0];
+audioShortcutEntry.text = defaultShortcut; audioShortcutApply.emit('clicked');
+expect(audioShortcutEntry.has_css_class('error') && settings.get_strv('quran-audio-toggle')[0] === defaultAudioShortcut,
+    'audio shortcut rejects collisions with navigation bindings');
+audioShortcutEntry.text = '<Control><Alt>p'; audioShortcutApply.emit('clicked');
+expect(settings.get_strv('quran-audio-toggle')[0] === '<Control><Alt>p','audio shortcut editor saves a custom accelerator');
+audioShortcutEntry.text = ''; audioShortcutApply.emit('clicked');
+expect(settings.get_strv('quran-audio-toggle').length === 0,'audio shortcut editor disables playback binding');
+audioShortcutReset.emit('clicked');
+expect(audioShortcutEntry.text === defaultAudioShortcut && settings.get_strv('quran-audio-toggle')[0] === defaultAudioShortcut,
+    'audio shortcut reset restores the default');
 window.present();
 // Yield the JS job queue so cached-image promises can update the preview cards.
 await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -129,5 +154,13 @@ const [navigationCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell', '/org
     'org.gnome.Shell.Screenshot', 'Screenshot', new GLib.Variant('(bbs)', [false, false, navigationScreenshot]),
     null, Gio.DBusCallFlags.NONE, 10000, null).deep_unpack();
 expect(navigationCaptured, `navigation shortcut controls screenshot: ${navigationScreenshot}`);
+const audioPage = descendants.find(widget => widget instanceof Adw.PreferencesPage && widget.title === 'Audio');
+window.set_visible_page(audioPage);
+await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT,400,()=>{resolve();return GLib.SOURCE_REMOVE;}));
+const audioScreenshot = GLib.getenv('QURAN_TEST_ROOT')+'/audio-preferences.png';
+const [audioCaptured] = Gio.DBus.session.call_sync('org.gnome.Shell','/org/gnome/Shell/Screenshot',
+    'org.gnome.Shell.Screenshot','Screenshot',new GLib.Variant('(bbs)',[false,false,audioScreenshot]),
+    null,Gio.DBusCallFlags.NONE,10000,null).deep_unpack();
+expect(audioCaptured,`native audio preferences screenshot: ${audioScreenshot}`);
 window.destroy();
 print('All native preferences checks passed.');

@@ -27,6 +27,14 @@ files=(
     pageModel.js
     pageStore.js
     imageWorker.js
+    audioModel.js
+    audioCache.js
+    audioWorker.js
+    audioWorker.py
+    audioProcess.js
+    recitationController.js
+    coordinateStore.js
+    coordinateWorker.py
     scripts/download-pages.py
     prefs.js
     metadata.json
@@ -36,6 +44,7 @@ files=(
     data/SOURCE.md
     data/MADANI-SOURCE.md
     data/TAJWEED-SOURCE.md
+    data/AUDIO-SOURCE.md
     README.md
     LICENSE
 )

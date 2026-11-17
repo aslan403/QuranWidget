@@ -35,7 +35,7 @@ export function layoutPage(cr, content, fontName = 'Noto Naskh Arabic') {
             const layout = makeLayout(cr, section.text, size, fontName, 448,
                 content.page === 1 || content.sections.length > 2);
             const height = layout.get_pixel_size()[1];
-            items.push({layout, y, title: false});
+            items.push({layout, y, title: false, verses: section.verses ?? []});
             y += height + 13;
         }
         return {items, height: Math.max(0, y - 13), fontSize: size};
@@ -102,6 +102,17 @@ export function drawPage(cr, width, height, content, options = {}) {
     const plan = layoutPage(cr, content, font);
     const top = 142 + Math.max(0, (552 - plan.height) / 2);
     for (const item of plan.items) {
+        const range = options.activeVerse && item.verses?.find(verse => verse.number === options.activeVerse.number);
+        if (range) {
+            const attributes = new Pango.AttrList();
+            for (const attribute of [Pango.attr_background_new(9000,33000,60000),
+                Pango.attr_background_alpha_new(Math.round(0.3 * alpha * 65535))]) {
+                attribute.start_index = range.startByte;
+                attribute.end_index = range.endByte;
+                attributes.insert(attribute);
+            }
+            item.layout.set_attributes(attributes);
+        }
         ink(item.title ? 0.65 : 1);
         cr.moveTo(56, top + item.y);
         PangoCairo.show_layout(cr, item.layout);

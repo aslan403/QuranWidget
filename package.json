@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.js && python3 tests/download-pages-test.py",
+    "test": "node --test tests/*.test.js && python3 tests/download-pages-test.py && python3 tests/coordinates-test.py",
     "test:render": "gjs -m tests/render.js && gjs -m tests/all-pages.js && gjs -m tests/page-store.js && gjs -m tests/madani-render.js && gjs -m tests/tajweed-render.js && gjs -m tests/surface-style.js && gjs -m tests/page-responsiveness.js",
     "test:responsiveness": "gjs -m tests/page-responsiveness.js",
     "test:shell": "bash tests/run-shell.sh",
     "test:navigation": "QURAN_TEST_SCOPE=navigation bash tests/run-shell.sh",
     "test:displays": "QURAN_TEST_SCOPE=displays bash tests/run-shell.sh",
+    "test:audio": "gjs -m tests/audio-worker.js && gjs -m tests/audio-cache.js && gjs -m tests/audio-controller.js && gjs -m tests/highlight-render.js && npm run test:audio-continuous",
+    "test:audio-continuous": "/usr/bin/python3 tests/audio-gapless.py && /usr/bin/python3 tests/audio-gapless-lifecycle.py && gjs -m tests/audio-continuous-controller.js",
+    "test:audio-shell": "gjs -m tests/prepare-audio-fixtures.js && QURAN_TEST_SCOPE=audio bash tests/run-shell.sh",
     "build": "bash scripts/build.sh"
   }
 }

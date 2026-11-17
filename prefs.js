@@ -8,7 +8,8 @@ import {MadaniPageStore} from './pageStore.js';
 import {drawMadaniPage} from './madaniRenderer.js';
 import {pageContent} from './model.js';
 import {resolvePageTheme} from './pageModel.js';
-import {SHORTCUTS} from './navigation.js';
+import {SHORTCUTS, NAVIGATION_SHORTCUTS, AUDIO_SHORTCUTS} from './navigation.js';
+import {RECITERS} from './audioModel.js';
 
 export default class QuranDesktopPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -189,11 +190,42 @@ export default class QuranDesktopPreferences extends ExtensionPreferences {
         const shortcuts = new Adw.PreferencesGroup({title: 'Keyboard shortcuts',
             description: 'Enter a GTK accelerator such as &lt;Control&gt;&lt;Alt&gt;Page_Down, then click Set. Clear the field and Set to disable; the undo button restores its default. Use Ctrl, Alt, or Super to avoid stealing ordinary typing keys. System shortcut conflicts may take precedence.'});
         navigation.add(shortcuts);
-        for (const shortcut of SHORTCUTS)
+        for (const shortcut of NAVIGATION_SHORTCUTS)
             this._addShortcutRow(shortcuts, settings, shortcut, connect);
         const searchHelp = new Adw.PreferencesGroup({title: 'Offline search',
             description: 'Use Search Quran in the top-bar menu, or its shortcut. Search Arabic text without diacritics, surah names (الفاتحة / fatiha), pages (604 / ٦٠٤), and references (2:255 / ٢:٢٥٥). Select a result or use Down and Enter to open its page. Escape closes search. Translations are not bundled; uncached page images may still require internet.'});
         navigation.add(searchHelp);
+
+        const audio = new Adw.PreferencesPage({title:'Audio',icon_name:'audio-speakers-symbolic'});
+        window.add(audio);
+        const recitation = new Adw.PreferencesGroup({title:'Verse-by-verse recitation',
+            description:'Start playback from the Quran top-bar menu. Recordings download on request and cache for offline use. Playback never starts automatically, and stops on lock or when changing page manually, reciter, or layout.'});
+        audio.add(recitation);
+        const reciter = new Adw.ComboRow({name:'audio-reciter',title:'Reciter',model:Gtk.StringList.new(RECITERS.map(item=>item.name))});
+        const syncReciter = () => {reciter.selected = RECITERS.findIndex(item=>item.id===settings.get_string('audio-reciter'));};
+        syncReciter();
+        reciter.connect('notify::selected',()=>settings.set_string('audio-reciter',RECITERS[reciter.selected].id));
+        connect('changed::audio-reciter',syncReciter);
+        recitation.add(reciter);
+        this._addSpin(recitation,settings,'audio-volume','Volume','Recitation volume · 0–100%',0,100);
+        const repeatModes = ['none','verse','page'];
+        const repeat = new Adw.ComboRow({name:'audio-repeat',title:'Repeat',model:Gtk.StringList.new(['No repeat','Current verse','Current page'])});
+        const syncRepeat = () => {repeat.selected = repeatModes.indexOf(settings.get_string('audio-repeat'));};
+        syncRepeat();
+        repeat.connect('notify::selected',()=>settings.set_string('audio-repeat',repeatModes[repeat.selected]));
+        connect('changed::audio-repeat',syncRepeat);
+        recitation.add(repeat);
+        this._addSwitch(recitation,settings,'audio-continuous','Continue to next page','Otherwise stop at the current page boundary');
+        this._addSwitch(recitation,settings,'audio-follow-page','Follow the recited verse','Show its page automatically on all selected displays');
+        const audioShortcuts = new Adw.PreferencesGroup({title:'Audio keyboard shortcuts',
+            description:'Global controls while using other apps. Volume changes by 5%. Set a GTK accelerator, clear and Set to disable, or undo to restore the default. Duplicate audio/navigation bindings are rejected; system shortcuts may take precedence.'});
+        audio.add(audioShortcuts);
+        for (const shortcut of AUDIO_SHORTCUTS)
+            this._addShortcutRow(audioShortcuts,settings,shortcut,connect);
+        audio.add(new Adw.PreferencesGroup({title:'Synchronized highlights',
+            description:'Verse changes follow actual audio-output boundaries, not estimated timers or preparation of the next clip. Printed pages use edition-specific line bounds; Transparent text highlights original-text ranges. The community Tajweed bounds omit a word in 112:3, so that verse is highlighted in full in the footer. Geometry is cached.'}));
+        audio.add(new Adw.PreferencesGroup({title:'Audio requirements',
+            description:'Requires system Python 3 with PyGObject, GStreamer 1.0 introspection, playbin3 and an MP3 decoder. A persistent player preloads two clips to remove player-added pauses; pauses in the original recordings remain unchanged. Slow downloads can still interrupt uncached playback. Changing repeat/continue stops the current queue. No audio files or coordinate databases are bundled.'}));
     }
 
     _addShortcutRow(group, settings, shortcut, connect) {

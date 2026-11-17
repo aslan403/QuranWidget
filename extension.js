@@ -15,6 +15,9 @@ import {MADANI_WIDTH, MADANI_HEIGHT, mushafEdition, resolvePageTheme} from './pa
 import {asciiDigits, QuranSearchIndex} from './search.js';
 import {QuranSearchDialog} from './searchDialog.js';
 import {SHORTCUTS} from './navigation.js';
+import {RECITERS} from './audioModel.js';
+import {RecitationController} from './recitationController.js';
+import {CoordinateStore} from './coordinateStore.js';
 
 export default class QuranDesktopExtension extends Extension {
     enable() {
@@ -38,6 +41,12 @@ export default class QuranDesktopExtension extends Extension {
         this._content = pageContent(this._data, this._settings.get_int('page'));
         this._areas = [];
         this._area = null;
+        this._coordinateStore = new CoordinateStore();
+        this._coordinates = null;
+        this._coordinateStatus = '';
+        this._audioLayout = `${this._settings.get_string('page-layout')}/${this._settings.get_string('mushaf-edition')}`;
+        this._audio = new RecitationController(this._data,() => this._onRecitationChanged(),
+            (verse,cancel) => this._prepareRecitation(verse,cancel));
         this._createMenu();
         this._registerShortcuts();
         this._connect(this._settings, 'changed', () => this._update());
@@ -72,6 +81,8 @@ export default class QuranDesktopExtension extends Extension {
                         backgroundOpacity: this._settings.get_int('background-opacity') / 100,
                         cornerRadius: this._settings.get_int('corner-radius'),
                         status: this._imageStatus,
+                        activeVerse: this._audio?.active,
+                        coordinates: this._coordinates,
                     });
                 } else {
                     drawPage(cr, width, height, this._content, {
@@ -79,6 +90,7 @@ export default class QuranDesktopExtension extends Extension {
                         fontName: this._settings.get_string('font-name'),
                         textColor: this._settings.get_string('text-color'),
                         showBackdrop: this._settings.get_boolean('show-backdrop'),
+                        activeVerse: this._audio?.active,
                         backgroundOpacity: this._settings.get_int('background-opacity') / 100,
                         cornerRadius: this._settings.get_int('corner-radius'),
                     });
@@ -137,12 +149,107 @@ export default class QuranDesktopExtension extends Extension {
         });
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this._indicator.menu.addAction('Search Quran…', () => this._openSearch());
+        this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this._audioStatus = new PopupMenu.PopupMenuItem('Audio · stopped',{reactive:false});
+        this._audioStatus.label.set_style('max-width: 480px;');
+        this._audioStatus.label.clutter_text.set_line_wrap(true);
+        this._indicator.menu.addMenuItem(this._audioStatus);
+        this._audioPlay = this._indicator.menu.addAction('Play from this page',() => this._toggleRecitation());
+        this._audioStop = this._indicator.menu.addAction('Stop recitation',() => this._audio.stop());
+        this._audioPrevious = this._indicator.menu.addAction('Previous verse',() => this._stepRecitation(-1));
+        this._audioNext = this._indicator.menu.addAction('Next verse',() => this._stepRecitation(1));
+        const audioJump = new PopupMenu.PopupBaseMenuItem({activate:false});
+        audioJump.add_child(new St.Label({text:'Play verse',y_align:Clutter.ActorAlign.CENTER}));
+        this._audioEntry = new St.Entry({hint_text:'2:255 / ٢:٢٥٥',can_focus:true,x_expand:true,accessible_name:'Recitation verse reference'});
+        this._audioEntry.set_width(180);
+        this._audioEntry.clutter_text.connect('activate',() => {
+            const match = asciiDigits(this._audioEntry.get_text()).trim().match(/^(\d{1,3}):(\d{1,3})$/);
+            if (match && this._audio.playVerse(Number(match[1]),Number(match[2]))) this._indicator.menu.close();
+            else { this._audioEntry.set_text(''); this._audioEntry.hint_text = 'Enter a valid surah:verse'; }
+        });
+        audioJump.add_child(this._audioEntry);
+        this._indicator.menu.addMenuItem(audioJump);
+        const reciters = new PopupMenu.PopupSubMenuMenuItem('Reciter');
+        for (const reciter of RECITERS)
+            reciters.menu.addAction(reciter.name,() => this._settings.set_string('audio-reciter',reciter.id));
+        this._indicator.menu.addMenuItem(reciters);
         this._indicator.menu.addAction('Reading & appearance…', () => this.openPreferences());
         Main.panel.addToStatusArea(this.uuid, this._indicator);
     }
 
+    async _prepareRecitation(verse,cancel) {
+        if (this._settings.get_boolean('audio-follow-page')) this._settings.set_int('page',verse.page);
+        if (this._settings.get_string('page-layout') !== 'madani') {
+            this._coordinates = null;
+            this._coordinateStatus = '';
+            return;
+        }
+        const edition = this._settings.get_string('mushaf-edition');
+        this._coordinateStatus = 'Preparing verse bounds…';
+        this._syncAudioControls();
+        try {
+            const [coordinates] = await Promise.all([
+                this._coordinateStore.load(edition,verse.page,cancel),
+                this._imagePromise ?? Promise.resolve(),
+            ]);
+            cancel.set_error_if_cancelled();
+            if (!this._generation.active) return;
+            this._coordinates = coordinates;
+            const entry = coordinates.verses[`${verse.surah}:${verse.numberInSurah}`];
+            this._coordinateStatus = entry?.complete ? '' : entry && verse.surah === 112 && verse.numberInSurah === 3
+                ? 'Upstream bounds incomplete · full-verse footer fallback'
+                : 'Verse bounds unavailable · use Transparent text for highlighting';
+        } catch (error) {
+            if (cancel.is_cancelled()) throw error;
+            this._coordinates = null;
+            this._coordinateStatus = 'Verse bounds unavailable · use Transparent text for highlighting';
+            console.warn(`[Quran Desktop] Verse bounds: ${error.message}`);
+        }
+        this._syncAudioControls();
+        this._queueRepaint();
+    }
+
+    _onRecitationChanged() {
+        if (!this._generation?.active) return;
+        if (this._audio.active && this._settings.get_boolean('audio-follow-page'))
+            this._settings.set_int('page',this._audio.active.page);
+        this._syncAudioControls();
+        this._queueRepaint();
+    }
+
+    _syncAudioControls() {
+        if (!this._audioStatus) return;
+        const audio = this._audio;
+        const reference = audio.current ? ` · ${audio.current.surah}:${audio.current.numberInSurah}` : '';
+        this._audioStatus.label.set_text(audio.state === 'error' ? `Audio error · ${audio.error.slice(0,150)}`
+            : `Audio · ${audio.state}${reference}${audio.current && this._coordinateStatus ? ' · '+this._coordinateStatus : ''}`);
+        this._audioPlay.label.set_text(audio.state === 'playing' ? 'Pause recitation' : audio.state === 'paused'
+            ? 'Resume recitation' : audio.state === 'loading' ? 'Preparing audio…' : 'Play from this page');
+        this._audioPlay.setSensitive(audio.state !== 'loading');
+        this._audioStop.setSensitive(audio.state !== 'stopped');
+        this._audioPrevious.setSensitive(Boolean(audio.index.adjacent(audio.current,-1)));
+        this._audioNext.setSensitive(Boolean(audio.index.adjacent(audio.current,1)));
+        this._panelLabel.set_text(audio.state === 'playing' ? 'قرآن ▶' : audio.state === 'paused' ? 'قرآن Ⅱ' : 'قرآن');
+    }
+
     _changePage(delta) {
         this._settings.set_int('page', clampPage(this._settings.get_int('page') + delta));
+    }
+
+    _toggleRecitation() {
+        if (Main.sessionMode.isLocked || !this._audio) return;
+        if (this._audio.state === 'playing') this._audio.pause();
+        else if (this._audio.state === 'paused') this._audio.resume();
+        else if (this._audio.state !== 'loading') this._audio.playPage(this._settings.get_int('page'));
+    }
+
+    _stepRecitation(delta) {
+        if (!Main.sessionMode.isLocked && this._audio?.index.adjacent(this._audio.current,delta)) this._audio.step(delta);
+    }
+
+    _changeRecitationVolume(delta) {
+        if (Main.sessionMode.isLocked) return;
+        this._settings.set_int('audio-volume', Math.max(0, Math.min(100, this._settings.get_int('audio-volume') + delta)));
     }
 
     _registerShortcuts() {
@@ -153,9 +260,16 @@ export default class QuranDesktopExtension extends Extension {
             'quran-last-page': () => this._settings.set_int('page', 604),
             'quran-go-to-page': () => this._openPageJump(),
             'quran-search': () => this._openSearch(),
+            'quran-audio-toggle': () => this._toggleRecitation(),
+            'quran-audio-stop': () => this._audio.stop(),
+            'quran-audio-previous': () => this._stepRecitation(-1),
+            'quran-audio-next': () => this._stepRecitation(1),
+            'quran-audio-volume-up': () => this._changeRecitationVolume(5),
+            'quran-audio-volume-down': () => this._changeRecitationVolume(-5),
         };
         for (const {name} of SHORTCUTS) {
-            Main.wm.addKeybinding(name, this._settings, Meta.KeyBindingFlags.NONE,
+            const flags = name === 'quran-audio-toggle' ? Meta.KeyBindingFlags.IGNORE_AUTOREPEAT : Meta.KeyBindingFlags.NONE;
+            Main.wm.addKeybinding(name, this._settings, flags,
                 Shell.ActionMode.NORMAL, actions[name]);
             this._keybindings.push(name);
         }
@@ -245,6 +359,12 @@ export default class QuranDesktopExtension extends Extension {
         const page = this._settings.get_int('page');
         const madani = this._settings.get_string('page-layout') === 'madani';
         const edition = this._settings.get_string('mushaf-edition');
+        const audioLayout = `${this._settings.get_string('page-layout')}/${edition}`;
+        if (this._audio.current && ((this._content.page !== page && this._audio.current.page !== page) || this._audioLayout !== audioLayout))
+            this._audio.stop();
+        this._audioLayout = audioLayout;
+        this._audio.configure({reciter:this._settings.get_string('audio-reciter'),volume:this._settings.get_int('audio-volume')/100,
+            repeat:this._settings.get_string('audio-repeat'),continuous:this._settings.get_boolean('audio-continuous')});
         if (this._content.page !== page) this._content = pageContent(this._data, page);
         this._title.label.set_text(`${madani ? mushafEdition(edition).title + ' · ' : ''}${this._content.sections[0]?.englishName ?? 'Quran'} · Page ${page} / 604`);
         this._previous.setSensitive(page > 1);
@@ -252,7 +372,7 @@ export default class QuranDesktopExtension extends Extension {
         this._downloadStatus.visible = madani;
         if (madani && (page !== this._imagePage || edition !== this._imageEdition ||
             this._imageThemeKey(this._pagePalette()) !== this._imageTheme)) {
-            this._loadMadaniPage(page);
+            this._imagePromise = this._loadMadaniPage(page);
         } else if (!madani) {
             this._cancellable?.cancel();
             this._asset = null;
@@ -275,9 +395,11 @@ export default class QuranDesktopExtension extends Extension {
             area.queue_repaint();
         });
         this._syncVisibility();
+        this._syncAudioControls();
     }
 
     _syncVisibility() {
+        if (Main.sessionMode.isLocked && this._audio && this._audio.state !== 'stopped') this._audio.stop();
         const visible = Main.layoutManager.monitors.length > 0 && !Main.sessionMode.isLocked &&
             !(Main.overview.visible && this._settings.get_boolean('hide-in-overview'));
         for (const area of this._areas) area.visible = visible;
@@ -290,6 +412,8 @@ export default class QuranDesktopExtension extends Extension {
         this._searchDialog = null;
         this._searchIndex = null;
         if (this._generation) this._generation.active = false;
+        this._audio?.destroy();
+        this._coordinateStore?.destroy();
         this._cancellable?.cancel();
         this._store?.destroy();
         for (const [object, id] of this._signals ?? []) object.disconnect(id);
@@ -301,5 +425,7 @@ export default class QuranDesktopExtension extends Extension {
         this._previous = this._next = this._entry = this._downloadStatus = null;
         this._settings = this._systemSettings = this._store = this._asset = null;
         this._cancellable = this._data = this._content = null;
+        this._audio = this._coordinateStore = this._coordinates = this._imagePromise = null;
+        this._audioStatus = this._audioPlay = this._audioStop = this._audioPrevious = this._audioNext = this._audioEntry = null;
     }
 }

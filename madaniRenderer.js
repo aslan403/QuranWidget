@@ -62,13 +62,38 @@ export function drawMadaniPage(cr, width, height, content, asset, options = {}) 
             cr.setSourceRGB(...palette.ink);
             cr.maskSurface(asset.surface, 0, 0);
         }
+        const geometry = options.coordinates;
+        const active = options.activeVerse;
+        const entry = geometry?.verses?.[`${active?.surah}:${active?.numberInSurah}`];
+        if (active?.page === content.page && entry?.complete && geometry.page === content.page &&
+            geometry.edition === (asset.edition ?? 'madani') &&
+            geometry.width === asset.surface.getWidth() && geometry.height === asset.surface.getHeight()) {
+            for (const [left,top,right,bottom] of entry.rectangles) {
+                if (!(left >= 0 && top >= 0 && right > left && bottom > top && right <= geometry.width && bottom <= geometry.height)) continue;
+                roundedRectangle(cr,left,top,right-left,bottom-top,8);
+                cr.setSourceRGBA(0.12,0.5,1,0.22);
+                cr.fillPreserve();
+                cr.setSourceRGBA(0.2,0.6,1,0.65);
+                cr.setLineWidth(2);
+                cr.stroke();
+            }
+        }
         cr.restore();
     } else {
         label(cr, options.status ?? 'Downloading Madani page…', margin, 440, MADANI_WIDTH - 2 * margin, 18, palette.ink);
         label(cr, 'Use the top-bar Quran menu to retry or choose Transparent text.', margin, 480,
             MADANI_WIDTH - 2 * margin, 12, palette.ink);
     }
-    if (showInfo)
+    const active = options.activeVerse;
+    const incomplete = options.coordinates?.verses?.[`${active?.surah}:${active?.numberInSurah}`]?.complete === false;
+    if (active?.page === content.page && active.surah === 112 && active.numberInSurah === 3 && incomplete) {
+        // The pinned Tajweed source omits a word here. Highlight its exact full
+        // source text in the footer instead of guessing or showing partial boxes.
+        roundedRectangle(cr,margin,904,MADANI_WIDTH-2*margin,40,8);
+        cr.setSourceRGBA(0.12,0.5,1,0.3);
+        cr.fill();
+        label(cr,`${active.text}   ١١٢:٣`,margin+6,910,MADANI_WIDTH-2*margin-12,16,palette.ink);
+    } else if (showInfo)
         label(cr, arabicNumber(content.page), margin, 912, MADANI_WIDTH - 2 * margin, 23, palette.ink);
     cr.restore();
     cr.popGroupToSource();

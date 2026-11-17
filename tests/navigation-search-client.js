@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import {SHORTCUTS} from '../navigation.js';
 const uuid = new GLib.Variant('(s)', ['quran-desktop@local']);
 function call(iface, method, params = null) {
     return Gio.DBus.session.call_sync('org.gnome.Shell', '/org/gnome/Shell', iface,
@@ -23,7 +24,7 @@ function waitFor(callback, message) {
 }
 const ext = `Main.extensionManager.lookup('quran-desktop@local').stateObj`;
 expect(evaluate(`typeof ${ext}._openSearch`) === 'function', 'offline search dialog is implemented');
-expect(evaluate(`${ext}._keybindings.length`) === 6, 'all six global shortcuts registered');
+expect(evaluate(`${ext}._keybindings.length`) === SHORTCUTS.length, 'all navigation and audio shortcuts registered');
 evaluate(`${ext}._settings.set_string('page-layout', 'transparent'); ${ext}._settings.set_int('page', 10); true`);
 evaluate(`globalThis.quranKeyboardReady = false; Promise.all([import('gi://Clutter'), import('gi://GLib')]).then(([c,g]) => { globalThis.quranTestClutter = c.default; globalThis.quranTestGLib = g.default; globalThis.quranTestKeyboard = c.default.get_default_backend().get_default_seat().create_virtual_device(c.default.InputDeviceType.KEYBOARD_DEVICE); globalThis.quranKeyboardReady = true; }); true`);
 waitFor(() => evaluate('globalThis.quranKeyboardReady'), 'virtual keyboard');
@@ -110,7 +111,7 @@ expect(evaluate('globalThis.quranOldExtension._keybindings.length') === 0, 'disa
 expect(evaluate('globalThis.quranOldExtension._searchDialog === null'), 'disable destroys the search dialog and modal grab');
 GLib.usleep(300000);
 call('org.gnome.Shell.Extensions','EnableExtension',uuid);
-waitFor(() => evaluate(`Boolean(${ext} && ${ext}._keybindings.length === 6)`), 're-enable shortcuts');
+waitFor(() => evaluate(`Boolean(${ext} && ${ext}._keybindings.length === ${SHORTCUTS.length})`), 're-enable shortcuts');
 evaluate(`${ext}._settings.set_int('page', 3); ${ext}._settings.set_string('page-layout', 'madani'); delete globalThis.quranOldExtension; true`);
 expect(true, 're-enable restores one complete set of shortcuts');
 print('All keyboard navigation and offline search integration checks passed.');

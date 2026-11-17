@@ -33,15 +33,19 @@ export function pageContent(data, value) {
     const page = clampPage(value);
     const ayahs = data.ayahs.filter(ayah => ayah.page === page);
     const sections = [];
+    const encoder = new TextEncoder();
     for (const ayah of ayahs) {
         let section = sections[sections.length - 1];
         if (!section || section.surah !== ayah.surah) {
             const surah = data.surahs.find(item => item.number === ayah.surah);
             section = {surah: ayah.surah, title: surah.name,
-                englishName: surah.englishName, startsSurah: ayah.numberInSurah === 1, text: ''};
+                englishName: surah.englishName, startsSurah: ayah.numberInSurah === 1, text: '', verses: []};
             sections.push(section);
         }
-        section.text += `${section.text ? ' ' : ''}${ayah.text} ﴿${arabicNumber(ayah.numberInSurah)}﴾`;
+        const fragment = `${ayah.text} ﴿${arabicNumber(ayah.numberInSurah)}﴾`;
+        const startByte = (section.verses.at(-1)?.endByte ?? 0) + (section.text ? 1 : 0);
+        section.verses.push({number: ayah.number, startByte, endByte: startByte + encoder.encode(fragment).length});
+        section.text += `${section.text ? ' ' : ''}${fragment}`;
     }
     return {page, juz: ayahs[0]?.juz ?? 1, sections};
 }
